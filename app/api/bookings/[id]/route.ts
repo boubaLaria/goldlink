@@ -9,16 +9,17 @@ const bookingUpdateSchema = z.object({
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const user = await authenticate(request)
     if (!user) {
       return sendError('Unauthorized', 401)
     }
 
     const booking = await prisma.booking.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         jewelry: {
           include: {
@@ -68,16 +69,17 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const user = await authenticate(request)
     if (!user) {
       return sendError('Unauthorized', 401)
     }
 
     const booking = await prisma.booking.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: { jewelry: { select: { ownerId: true } } },
     })
 
@@ -101,7 +103,7 @@ export async function PATCH(
     }
 
     const updated = await prisma.booking.update({
-      where: { id: params.id },
+      where: { id },
       data: result.data,
       include: {
         jewelry: true,

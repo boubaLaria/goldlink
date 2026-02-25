@@ -14,11 +14,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { useStore } from "@/lib/store"
+import { useAuth } from "@/lib/hooks/use-auth"
 
 export function Header() {
   const pathname = usePathname()
-  const { currentUser, setCurrentUser } = useStore()
+  const { user: currentUser, loading, logout } = useAuth()
 
   const navigation = [
     { name: "Catalogue", href: "/catalog" },
@@ -55,14 +55,16 @@ export function Header() {
           </div>
 
           <div className="flex items-center gap-4">
-            {currentUser ? (
+            {loading ? null : currentUser ? (
               <>
-                <Button asChild variant="outline" size="sm" className="hidden sm:flex bg-transparent">
-                  <Link href="/jewelry/new">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Ajouter une annonce
-                  </Link>
-                </Button>
+                {['SELLER', 'JEWELER', 'ADMIN'].includes(currentUser.role) && (
+                  <Button asChild variant="outline" size="sm" className="hidden sm:flex bg-transparent">
+                    <Link href="/jewelry/new">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Ajouter une annonce
+                    </Link>
+                  </Button>
+                )}
 
                 <Button asChild variant="ghost" size="icon" className="relative">
                   <Link href="/messages">
@@ -96,9 +98,9 @@ export function Header() {
                     <DropdownMenuItem asChild>
                       <Link href="/dashboard/listings">Mes annonces</Link>
                     </DropdownMenuItem>
-                    {currentUser.role === "admin" && (
+                    {currentUser.role === "ADMIN" && (
                       <DropdownMenuItem asChild>
-                        <Link href="/admin">Administration</Link>
+                        <Link href="/dashboard/admin">Panel Admin</Link>
                       </DropdownMenuItem>
                     )}
                     <DropdownMenuSeparator />
@@ -108,7 +110,7 @@ export function Header() {
                         Paramètres
                       </Link>
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setCurrentUser(null)}>Se déconnecter</DropdownMenuItem>
+                    <DropdownMenuItem onClick={logout}>Se déconnecter</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </>

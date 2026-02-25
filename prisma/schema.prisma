@@ -130,7 +130,9 @@ model Jewelry {
   salePrice            Float?   // Sale price (in seller's currency)
   available            Boolean  @default(true)
   location             String
-  
+  country              String   @default("France")  // Seller's country
+  currency             String   @default("EUR")      // Seller's currency (EUR, USD, GBP…)
+
   // Engagement metrics
   views                Int      @default(0)
   rating               Float    @default(0)

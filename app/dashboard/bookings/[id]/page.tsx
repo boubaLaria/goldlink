@@ -16,7 +16,7 @@ import { Footer } from "@/components/layout/footer"
 import { Providers } from "@/app/providers"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useBookings } from "@/lib/hooks/use-bookings"
-import { formatPrice } from "@/lib/utils/format"
+import { formatPrice, formatPriceWithCurrency, getCurrencyLocale } from "@/lib/utils/format"
 import { formatDate } from "@/lib/utils/date"
 import { BOOKING_STATUS_LABELS, BOOKING_STATUS_COLORS } from "@/lib/services/booking.service"
 import { useToast } from "@/hooks/use-toast"
@@ -94,6 +94,8 @@ export default function BookingDetailPage() {
     )
   }
 
+  const userCurrency = currentUser?.currency || 'MAD'
+  const locale = getCurrencyLocale(userCurrency)
   const status = booking.status?.toLowerCase()
   const isOwner = currentUser?.id === booking.ownerId
   const jewelry = booking.jewelry
@@ -264,19 +266,19 @@ export default function BookingDetailPage() {
                   <CardContent className="space-y-3">
                     <div className="flex justify-between text-sm">
                       <span>Total location</span>
-                      <span className="font-medium">{formatPrice(booking.totalPrice)}</span>
+                      <span className="font-medium">{formatPriceWithCurrency(booking.totalPrice, userCurrency, locale)}</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="flex items-center gap-1">
                         <Shield className="h-3 w-3" />
                         Caution
                       </span>
-                      <span className="font-medium">{formatPrice(booking.deposit)}</span>
+                      <span className="font-medium">{formatPriceWithCurrency(booking.deposit, userCurrency, locale)}</span>
                     </div>
                     <Separator />
                     <div className="flex justify-between font-semibold">
                       <span>Total</span>
-                      <span>{formatPrice(booking.totalPrice + booking.deposit)}</span>
+                      <span>{formatPriceWithCurrency(booking.totalPrice + booking.deposit, userCurrency, locale)}</span>
                     </div>
                   </CardContent>
                 </Card>

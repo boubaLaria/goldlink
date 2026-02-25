@@ -80,6 +80,35 @@ export function withAdminAuth(
 }
 
 /**
+ * Wrapper for role-restricted routes
+ * Usage: withRoles(['SELLER', 'JEWELER', 'ADMIN'], handler)
+ */
+export function withRoles(
+  roles: string[],
+  handler: (req: NextRequest, { user }: { user: any }) => Promise<Response>
+) {
+  return async (req: NextRequest, context: any) => {
+    const user = await authenticate(req)
+
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+
+    if (!roles.includes(user.role)) {
+      return NextResponse.json(
+        { error: `Access restricted. Required role: ${roles.join(' or ')}` },
+        { status: 403 }
+      )
+    }
+
+    return handler(req, { user })
+  }
+}
+
+/**
  * Parse JSON body safely
  */
 export async function parseJSON(request: NextRequest) {

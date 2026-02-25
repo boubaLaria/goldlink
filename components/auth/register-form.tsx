@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
@@ -19,7 +18,6 @@ export function RegisterForm() {
     firstName: "",
     lastName: "",
     phone: "",
-    role: "BUYER",
   })
   const [isLoading, setIsLoading] = useState(false)
   const { register } = useAuth()
@@ -36,7 +34,6 @@ export function RegisterForm() {
         formData.firstName,
         formData.lastName,
         formData.phone,
-        formData.role,
       )
       toast({
         title: "Inscription réussie",
@@ -106,23 +103,6 @@ export function RegisterForm() {
               onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
               required
             />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="role">Type de compte</Label>
-            <Select
-              value={formData.role}
-              onValueChange={(value) => setFormData({ ...formData, role: value })}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="BUYER">Acheteur / Locataire</SelectItem>
-                <SelectItem value="SELLER">Vendeur / Propriétaire</SelectItem>
-                <SelectItem value="JEWELER">Bijoutier</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
 
           <div className="space-y-2">

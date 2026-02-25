@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import type { Jewelry } from "@/lib/types"
-import { formatPrice, formatWeight, formatPurity } from "@/lib/utils/format"
+import { formatPriceWithCurrency, getCurrencyLocale, formatWeight, formatPurity } from "@/lib/utils/format"
 
 interface JewelryCardProps {
   jewelry: Jewelry
@@ -16,6 +16,8 @@ interface JewelryCardProps {
 }
 
 export function JewelryCard({ jewelry, onFavorite, isFavorite = false }: JewelryCardProps) {
+  const itemCurrency = (jewelry as any).currency || 'EUR'
+  const locale = getCurrencyLocale(itemCurrency)
   return (
     <Card className="group overflow-hidden hover:shadow-lg transition-shadow">
       <Link href={`/jewelry/${jewelry.id}`}>
@@ -81,13 +83,13 @@ export function JewelryCard({ jewelry, onFavorite, isFavorite = false }: Jewelry
         <div className="flex flex-col gap-1">
           {jewelry.rentPricePerDay && (
             <p className="text-sm">
-              <span className="font-semibold text-primary">{formatPrice(jewelry.rentPricePerDay)}</span>
+              <span className="font-semibold text-primary">{formatPriceWithCurrency(jewelry.rentPricePerDay, itemCurrency, locale)}</span>
               <span className="text-muted-foreground">/jour</span>
             </p>
           )}
           {jewelry.salePrice && (
             <p className="text-sm">
-              <span className="font-semibold">{formatPrice(jewelry.salePrice)}</span>
+              <span className="font-semibold">{formatPriceWithCurrency(jewelry.salePrice, itemCurrency, locale)}</span>
               <span className="text-muted-foreground"> à l'achat</span>
             </p>
           )}

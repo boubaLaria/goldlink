@@ -11,7 +11,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
-import { formatPrice } from "@/lib/utils/format"
+import { formatPriceWithCurrency, getCurrencyLocale } from "@/lib/utils/format"
 import { calculateDaysBetween } from "@/lib/utils/date"
 import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -25,6 +25,7 @@ type BookingItem = {
   location: string
   rentPricePerDay: number | null
   estimatedValue: number
+  currency: string | null
 }
 
 interface BookingClientProps {
@@ -67,6 +68,10 @@ export function BookingClient({ item }: BookingClientProps) {
       </div>
     )
   }
+
+  const itemCurrency = item.currency || 'EUR'
+  const locale = getCurrencyLocale(itemCurrency)
+  const fmt = (price: number) => formatPriceWithCurrency(price, itemCurrency, locale)
 
   const days = startDate && endDate ? calculateDaysBetween(startDate, endDate) : 0
   const rentalPrice = days * (item.rentPricePerDay || 0)
@@ -242,7 +247,7 @@ export function BookingClient({ item }: BookingClientProps) {
                 <Alert>
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription>
-                    Une caution de {formatPrice(deposit)} sera bloquée sur votre carte et restituée après le retour du
+                    Une caution de {fmt(deposit)} sera bloquée sur votre carte et restituée après le retour du
                     bijou en bon état.
                   </AlertDescription>
                 </Alert>
@@ -267,14 +272,14 @@ export function BookingClient({ item }: BookingClientProps) {
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span>
-                      {formatPrice(item.rentPricePerDay || 0)} × {days} jour{days > 1 ? "s" : ""}
+                      {fmt(item.rentPricePerDay || 0)} × {days} jour{days > 1 ? "s" : ""}
                     </span>
-                    <span>{formatPrice(rentalPrice)}</span>
+                    <span>{fmt(rentalPrice)}</span>
                   </div>
                   {insurance && (
                     <div className="flex justify-between text-sm">
                       <span>Assurance (5%)</span>
-                      <span>{formatPrice(insurancePrice)}</span>
+                      <span>{fmt(insurancePrice)}</span>
                     </div>
                   )}
                   <div className="flex justify-between text-sm">
@@ -282,7 +287,7 @@ export function BookingClient({ item }: BookingClientProps) {
                       <Shield className="h-3 w-3" />
                       Caution (bloquée)
                     </span>
-                    <span>{formatPrice(deposit)}</span>
+                    <span>{fmt(deposit)}</span>
                   </div>
                 </div>
 
@@ -290,7 +295,7 @@ export function BookingClient({ item }: BookingClientProps) {
 
                 <div className="flex justify-between font-semibold text-lg">
                   <span>Total</span>
-                  <span>{formatPrice(totalPrice)}</span>
+                  <span>{fmt(totalPrice)}</span>
                 </div>
 
                 <Button

@@ -3,14 +3,15 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
-import { ArrowLeft, Calendar, MapPin, Star, Shield, MessageSquare } from "lucide-react"
+import { ArrowLeft, Calendar, MapPin, Star, Shield, MessageSquare, Pencil, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useAuth } from "@/lib/hooks/use-auth"
-import { formatPrice, formatWeight } from "@/lib/utils/format"
+import { useJewelry } from "@/lib/hooks/use-jewelry"
+import { formatPrice, formatPriceWithCurrency, getCurrencyLocale, formatWeight } from "@/lib/utils/format"
 import { formatDate } from "@/lib/utils/date"
 import Link from "next/link"
 
@@ -50,6 +51,8 @@ type ApiJewelry = {
   salePrice: number | null
   available: boolean
   location: string
+  country: string
+  currency: string
   views: number
   rating: number
   reviewCount: number
@@ -64,7 +67,22 @@ interface JewelryDetailClientProps {
 export function JewelryDetailClient({ jewelry }: JewelryDetailClientProps) {
   const router = useRouter()
   const { user: currentUser } = useAuth()
+  const { delete: deleteJewelry } = useJewelry()
   const [selectedImage, setSelectedImage] = useState(0)
+
+  const canEdit = currentUser && (currentUser.id === jewelry.owner.id || currentUser.role === 'ADMIN')
+
+  async function handleDelete() {
+    if (!confirm('Supprimer ce bijou ? Cette action est irréversible.')) return
+    try {
+      await deleteJewelry(jewelry.id)
+      router.push('/catalog')
+    } catch {
+      alert('Erreur lors de la suppression.')
+    }
+  }
+  const itemCurrency = jewelry.currency || 'EUR'
+  const locale = getCurrencyLocale(itemCurrency)
 
   const owner = jewelry.owner
 
@@ -141,13 +159,13 @@ export function JewelryDetailClient({ jewelry }: JewelryDetailClientProps) {
               <div className="flex flex-col gap-2 mb-6">
                 {jewelry.rentPricePerDay && (
                   <div>
-                    <span className="text-3xl font-bold text-primary">{formatPrice(jewelry.rentPricePerDay)}</span>
+                    <span className="text-3xl font-bold text-primary">{formatPriceWithCurrency(jewelry.rentPricePerDay, itemCurrency, locale)}</span>
                     <span className="text-muted-foreground">/jour</span>
                   </div>
                 )}
                 {jewelry.salePrice && (
                   <div>
-                    <span className="text-2xl font-bold">{formatPrice(jewelry.salePrice)}</span>
+                    <span className="text-2xl font-bold">{formatPriceWithCurrency(jewelry.salePrice, itemCurrency, locale)}</span>
                     <span className="text-muted-foreground"> prix de vente</span>
                   </div>
                 )}
@@ -173,7 +191,7 @@ export function JewelryDetailClient({ jewelry }: JewelryDetailClientProps) {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Valeur estimée</p>
-                  <p className="font-semibold">{formatPrice(jewelry.estimatedValue)}</p>
+                  <p className="font-semibold">{formatPriceWithCurrency(jewelry.estimatedValue, itemCurrency, locale)}</p>
                 </div>
               </div>
             </div>
@@ -247,6 +265,22 @@ export function JewelryDetailClient({ jewelry }: JewelryDetailClientProps) {
                 </Button>
               )}
             </div>
+
+            {/* Owner / Admin actions */}
+            {canEdit && (
+              <div className="flex gap-3 pt-2 border-t">
+                <Button asChild variant="outline" size="sm" className="bg-transparent">
+                  <Link href={`/jewelry/${jewelry.id}/edit`}>
+                    <Pencil className="h-4 w-4 mr-2" />
+                    Modifier
+                  </Link>
+                </Button>
+                <Button variant="destructive" size="sm" onClick={handleDelete}>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Supprimer
+                </Button>
+              </div>
+            )}
           </div>
         </div>
 

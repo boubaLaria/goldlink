@@ -26,6 +26,8 @@ export interface User {
   createdAt: Date
   address?: string
   cin?: string
+  country?: string
+  currency?: string
 }
 
 export interface Jewelry {

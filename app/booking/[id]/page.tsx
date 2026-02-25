@@ -15,6 +15,7 @@ export default async function BookingPage({ params }: { params: Promise<{ id: st
       estimatedValue: true,
       listingTypes: true,
       available: true,
+      currency: true,
     },
   })
 

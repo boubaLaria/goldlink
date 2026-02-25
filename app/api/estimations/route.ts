@@ -9,14 +9,14 @@ const estimationCreateSchema = z.object({
   purity: z.enum(['K8', 'K10', 'K14', 'K18', 'K22', 'K24']),
 })
 
-// Gold prices per gram (MAD)
+// Gold prices per gram (EUR, approximate market rates)
 const GOLD_PRICES: Record<string, number> = {
-  K8: 150,
-  K10: 200,
-  K14: 280,
-  K18: 450,
-  K22: 550,
-  K24: 600,
+  K8: 15,
+  K10: 20,
+  K14: 28,
+  K18: 45,
+  K22: 55,
+  K24: 60,
 }
 
 export async function GET(request: NextRequest) {

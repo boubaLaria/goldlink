@@ -15,6 +15,8 @@ const jewelryCreateSchema = z.object({
   rentPricePerDay: z.number().nonnegative().optional(),
   salePrice: z.number().nonnegative().optional(),
   location: z.string().min(1),
+  country: z.string().min(1).default('France'),
+  currency: z.string().min(1).default('EUR'),
 })
 
 export async function GET(request: NextRequest) {

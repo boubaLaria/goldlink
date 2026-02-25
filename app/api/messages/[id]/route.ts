@@ -4,9 +4,10 @@ import prisma from '@/lib/db'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const user = await authenticate(request)
     if (!user) {
       return sendError('Unauthorized', 401)
@@ -18,7 +19,7 @@ export async function GET(
 
     const messages = await prisma.message.findMany({
       where: {
-        conversationId: params.id,
+        conversationId: id,
       },
       include: {
         sender: {
@@ -38,7 +39,7 @@ export async function GET(
     // Mark received messages as read
     await prisma.message.updateMany({
       where: {
-        conversationId: params.id,
+        conversationId: id,
         receiverId: user.id,
         status: 'SENT',
       },

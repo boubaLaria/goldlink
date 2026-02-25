@@ -28,14 +28,37 @@ export const PURITY_OPTIONS = [
 ]
 
 export const LOCATIONS = [
-  'Casablanca',
-  'Marrakech',
-  'Rabat',
-  'Fès',
-  'Tanger',
-  'Agadir',
-  'Meknès',
-  'Oujda',
+  'Paris',
+  'Lyon',
+  'Marseille',
+  'Toulouse',
+  'Nice',
+  'Bordeaux',
+  'Strasbourg',
+  'Nantes',
+  'Lille',
+  'Rennes',
+]
+
+export const CURRENCIES = [
+  { value: 'EUR', label: 'Euro (€)' },
+  { value: 'USD', label: 'Dollar US ($)' },
+  { value: 'GBP', label: 'Livre sterling (£)' },
+  { value: 'MAD', label: 'Dirham marocain (MAD)' },
+  { value: 'AED', label: 'Dirham émirati (AED)' },
+  { value: 'SAR', label: 'Riyal saoudien (SAR)' },
+]
+
+export const COUNTRIES = [
+  { value: 'France', label: 'France' },
+  { value: 'Belgique', label: 'Belgique' },
+  { value: 'Suisse', label: 'Suisse' },
+  { value: 'Luxembourg', label: 'Luxembourg' },
+  { value: 'Maroc', label: 'Maroc' },
+  { value: 'Algérie', label: 'Algérie' },
+  { value: 'Tunisie', label: 'Tunisie' },
+  { value: 'Émirats arabes unis', label: 'Émirats arabes unis' },
+  { value: 'Arabie saoudite', label: 'Arabie saoudite' },
 ]
 
 export function getJewelryTypeLabel(type: string): string {
@@ -50,6 +73,8 @@ export function buildJewelryPayload(formData: {
   purity: string
   estimatedValue: string
   location: string
+  country: string
+  currency: string
   listingTypes: string[]
   rentPricePerDay: string
   salePrice: string
@@ -63,6 +88,8 @@ export function buildJewelryPayload(formData: {
     purity: formData.purity,
     estimatedValue: parseFloat(formData.estimatedValue),
     location: formData.location,
+    country: formData.country,
+    currency: formData.currency,
     listingTypes: formData.listingTypes,
     images: formData.images,
     rentPricePerDay: formData.listingTypes.includes('RENT') && formData.rentPricePerDay

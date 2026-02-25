@@ -18,7 +18,7 @@ import { useAuth } from "@/lib/hooks/use-auth"
 import { useJewelry } from "@/lib/hooks/use-jewelry"
 import { useToast } from "@/hooks/use-toast"
 import { Providers } from "@/app/providers"
-import { JEWELRY_TYPES, PURITY_OPTIONS, LOCATIONS, buildJewelryPayload } from "@/lib/services/jewelry.service"
+import { JEWELRY_TYPES, PURITY_OPTIONS, LOCATIONS, CURRENCIES, COUNTRIES, buildJewelryPayload } from "@/lib/services/jewelry.service"
 
 export default function NewJewelryPage() {
   const router = useRouter()
@@ -34,6 +34,8 @@ export default function NewJewelryPage() {
     purity: "",
     estimatedValue: "",
     location: "",
+    country: currentUser?.country || "France",
+    currency: currentUser?.currency || "EUR",
     rentPricePerDay: "",
     salePrice: "",
     listingTypes: [] as string[],
@@ -201,7 +203,7 @@ export default function NewJewelryPage() {
                     <Label htmlFor="title">Titre *</Label>
                     <Input
                       id="title"
-                      placeholder="Ex: Collier traditionnel marocain en or 18K"
+                      placeholder="Ex: Collier traditionnel en or 18K"
                       value={formData.title}
                       onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                       required
@@ -270,18 +272,18 @@ export default function NewJewelryPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="estimatedValue">Valeur estimée (MAD) *</Label>
+                      <Label htmlFor="estimatedValue">Valeur estimée ({formData.currency}) *</Label>
                       <Input
                         id="estimatedValue"
                         type="number"
-                        placeholder="Ex: 85000"
+                        placeholder="Ex: 5000"
                         value={formData.estimatedValue}
                         onChange={(e) => setFormData({ ...formData, estimatedValue: e.target.value })}
                         required
                       />
                     </div>
 
-                    <div className="space-y-2 md:col-span-2">
+                    <div className="space-y-2">
                       <Label htmlFor="location">Localisation *</Label>
                       <Select
                         value={formData.location}
@@ -293,6 +295,40 @@ export default function NewJewelryPage() {
                         <SelectContent>
                           {LOCATIONS.map((loc) => (
                             <SelectItem key={loc} value={loc}>{loc}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="country">Pays *</Label>
+                      <Select
+                        value={formData.country}
+                        onValueChange={(value) => setFormData({ ...formData, country: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Sélectionner" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {COUNTRIES.map((c) => (
+                            <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="currency">Devise *</Label>
+                      <Select
+                        value={formData.currency}
+                        onValueChange={(value) => setFormData({ ...formData, currency: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Sélectionner" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {CURRENCIES.map((c) => (
+                            <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
@@ -313,11 +349,11 @@ export default function NewJewelryPage() {
                       </div>
                       {formData.listingTypes.includes("RENT") && (
                         <div className="ml-6 space-y-2">
-                          <Label htmlFor="rentPrice">Prix de location par jour (MAD)</Label>
+                          <Label htmlFor="rentPrice">Prix de location par jour ({formData.currency})</Label>
                           <Input
                             id="rentPrice"
                             type="number"
-                            placeholder="Ex: 1200"
+                            placeholder="Ex: 100"
                             value={formData.rentPricePerDay}
                             onChange={(e) => setFormData({ ...formData, rentPricePerDay: e.target.value })}
                             required={formData.listingTypes.includes("RENT")}
@@ -335,11 +371,11 @@ export default function NewJewelryPage() {
                       </div>
                       {formData.listingTypes.includes("SALE") && (
                         <div className="ml-6 space-y-2">
-                          <Label htmlFor="salePrice">Prix de vente (MAD)</Label>
+                          <Label htmlFor="salePrice">Prix de vente ({formData.currency})</Label>
                           <Input
                             id="salePrice"
                             type="number"
-                            placeholder="Ex: 85000"
+                            placeholder="Ex: 5000"
                             value={formData.salePrice}
                             onChange={(e) => setFormData({ ...formData, salePrice: e.target.value })}
                             required={formData.listingTypes.includes("SALE")}

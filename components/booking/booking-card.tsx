@@ -1,11 +1,14 @@
+"use client"
+
 import Link from "next/link"
 import { Calendar, MapPin } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import type { Booking, Jewelry } from "@/lib/types"
-import { formatPrice } from "@/lib/utils/format"
+import { formatPrice, formatPriceWithCurrency, getCurrencyLocale } from "@/lib/utils/format"
 import { formatDate } from "@/lib/utils/date"
+import { useAuth } from "@/lib/hooks/use-auth"
 
 interface BookingCardProps {
   booking: Booking
@@ -13,6 +16,10 @@ interface BookingCardProps {
 }
 
 export function BookingCard({ booking, jewelry }: BookingCardProps) {
+  const { user: currentUser } = useAuth()
+  const userCurrency = currentUser?.currency || 'MAD'
+  const locale = getCurrencyLocale(userCurrency)
+
   const statusColors = {
     pending: "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400",
     confirmed: "bg-blue-500/10 text-blue-700 dark:text-blue-400",
@@ -67,7 +74,7 @@ export function BookingCard({ booking, jewelry }: BookingCardProps) {
             <div className="flex items-center justify-between pt-2">
               <div>
                 <p className="text-sm text-muted-foreground">Total</p>
-                <p className="text-lg font-semibold">{formatPrice(booking.totalPrice)}</p>
+                <p className="text-lg font-semibold">{formatPriceWithCurrency(booking.totalPrice, userCurrency, locale)}</p>
               </div>
               <Button asChild variant="outline" size="sm" className="bg-transparent">
                 <Link href={`/dashboard/bookings/${booking.id}`}>Voir détails</Link>

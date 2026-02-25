@@ -11,7 +11,7 @@ const registerSchema = z.object({
   firstName: z.string().min(1),
   lastName: z.string().min(1),
   phone: z.string().optional(),
-  role: z.enum(['BUYER', 'SELLER', 'JEWELER']).default('BUYER'),
+  // Role is always BUYER for self-registration; only ADMIN can promote users
 })
 
 export async function POST(request: NextRequest) {
@@ -26,7 +26,8 @@ export async function POST(request: NextRequest) {
       return sendError(result.error.errors[0].message, 400)
     }
 
-    const { email, password, firstName, lastName, phone, role } = result.data
+    const { email, password, firstName, lastName, phone } = result.data
+    const role = 'BUYER' // Self-registration is always BUYER; only ADMIN can promote
 
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
