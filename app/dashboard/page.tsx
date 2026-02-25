@@ -4,7 +4,7 @@ import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import {
   Package, Calendar, TrendingUp, DollarSign,
-  ShoppingBag, Gem, Users, Shield, Star, BarChart2,
+  ShoppingBag, Gem, Shield, Star, BarChart2, Users,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -18,15 +18,51 @@ import { useBookings } from "@/lib/hooks/use-bookings"
 import { formatPrice } from "@/lib/utils/format"
 import { Providers } from "../providers"
 import Link from "next/link"
+import {
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis,
+  CartesianGrid, Tooltip, LineChart, Line,
+} from "recharts"
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function buildMonthlyData(bookings: any[], userId: string, asOwner: boolean) {
+  const months: Record<string, { month: string; revenue: number; count: number }> = {}
+  const now = new Date()
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now)
+    d.setMonth(d.getMonth() - i)
+    const key = d.toLocaleString("fr-FR", { month: "short", year: "2-digit" })
+    months[key] = { month: key, revenue: 0, count: 0 }
+  }
+  bookings.forEach((b) => {
+    const relevant = asOwner ? b.ownerId === userId : b.renterId === userId
+    if (!relevant) return
+    const d = new Date(b.createdAt)
+    const diff = (now.getFullYear() - d.getFullYear()) * 12 + now.getMonth() - d.getMonth()
+    if (diff < 0 || diff > 5) return
+    const key = d.toLocaleString("fr-FR", { month: "short", year: "2-digit" })
+    if (months[key]) {
+      months[key].count++
+      if (b.status === "COMPLETED") months[key].revenue += b.totalPrice
+    }
+  })
+  return Object.values(months)
+}
+
+const TOOLTIP_STYLE = {
+  background: "var(--card)",
+  border: "1px solid var(--border)",
+  borderRadius: "8px",
+  fontSize: "12px",
+}
 
 // ─── Sub-dashboards ───────────────────────────────────────────────────────────
 
 function BuyerDashboard({ user, bookings }: { user: any; bookings: any[] }) {
   const active = bookings.filter((b) => b.status === "ACTIVE" || b.status === "CONFIRMED")
   const completed = bookings.filter((b) => b.status === "COMPLETED")
-  const totalSpent = bookings
-    .filter((b) => b.renterId === user.id && b.status === "COMPLETED")
-    .reduce((s, b) => s + b.totalPrice, 0)
+  const totalSpent = completed.reduce((s, b) => s + b.totalPrice, 0)
+  const chartData = buildMonthlyData(bookings, user.id, false)
 
   return (
     <>
@@ -50,7 +86,7 @@ function BuyerDashboard({ user, bookings }: { user: any; bookings: any[] }) {
             <CardDescription>Suivez vos locations en cours</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button asChild className="w-full">
+            <Button asChild className="w-full gold-button text-white border-0">
               <Link href="/dashboard/bookings">Voir mes réservations</Link>
             </Button>
           </CardContent>
@@ -79,6 +115,32 @@ function BuyerDashboard({ user, bookings }: { user: any; bookings: any[] }) {
         </Card>
       </div>
 
+      {/* Spending chart */}
+      {bookings.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <BarChart2 className="h-4 w-4 text-primary" />
+              Mes dépenses par mois
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={chartData} margin={{ top: 5, right: 10, bottom: 5, left: 10 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                <XAxis dataKey="month" tick={{ fontSize: 12 }} stroke="var(--muted-foreground)" />
+                <YAxis tick={{ fontSize: 11 }} stroke="var(--muted-foreground)" tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                <Tooltip
+                  formatter={(v: number) => [formatPrice(v), "Dépenses"]}
+                  contentStyle={TOOLTIP_STYLE}
+                />
+                <Bar dataKey="revenue" fill="#C8922A" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
+
       <RecentBookings bookings={bookings} userId={user.id} />
     </>
   )
@@ -87,9 +149,8 @@ function BuyerDashboard({ user, bookings }: { user: any; bookings: any[] }) {
 function SellerDashboard({ user, jewelry, bookings }: { user: any; jewelry: any[]; bookings: any[] }) {
   const received = bookings.filter((b) => b.ownerId === user.id)
   const active = received.filter((b) => b.status === "ACTIVE" || b.status === "CONFIRMED")
-  const revenue = received
-    .filter((b) => b.status === "COMPLETED")
-    .reduce((s, b) => s + b.totalPrice, 0)
+  const revenue = received.filter((b) => b.status === "COMPLETED").reduce((s, b) => s + b.totalPrice, 0)
+  const chartData = buildMonthlyData(bookings, user.id, true)
 
   return (
     <>
@@ -113,7 +174,7 @@ function SellerDashboard({ user, jewelry, bookings }: { user: any; jewelry: any[
             <CardDescription>{jewelry.length} bijou{jewelry.length !== 1 ? "x" : ""} en ligne</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button asChild className="w-full">
+            <Button asChild className="w-full gold-button text-white border-0">
               <Link href="/dashboard/listings">Gérer mes annonces</Link>
             </Button>
           </CardContent>
@@ -142,6 +203,56 @@ function SellerDashboard({ user, jewelry, bookings }: { user: any; jewelry: any[
         </Card>
       </div>
 
+      {/* Revenue chart */}
+      <div className="grid lg:grid-cols-2 gap-6 mb-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <TrendingUp className="h-4 w-4 text-primary" />
+              Revenus mensuels
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={200}>
+              <LineChart data={chartData} margin={{ top: 5, right: 10, bottom: 5, left: 10 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                <XAxis dataKey="month" tick={{ fontSize: 12 }} stroke="var(--muted-foreground)" />
+                <YAxis tick={{ fontSize: 11 }} stroke="var(--muted-foreground)" tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                <Tooltip
+                  formatter={(v: number) => [formatPrice(v), "Revenus"]}
+                  contentStyle={TOOLTIP_STYLE}
+                />
+                <Line type="monotone" dataKey="revenue" stroke="#C8922A" strokeWidth={2.5}
+                  dot={{ fill: "#C8922A", r: 4 }} activeDot={{ r: 6 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Calendar className="h-4 w-4 text-primary" />
+              Réservations reçues par mois
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={chartData} margin={{ top: 5, right: 10, bottom: 5, left: 10 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                <XAxis dataKey="month" tick={{ fontSize: 12 }} stroke="var(--muted-foreground)" />
+                <YAxis tick={{ fontSize: 11 }} stroke="var(--muted-foreground)" allowDecimals={false} />
+                <Tooltip
+                  formatter={(v: number) => [v, "Réservations"]}
+                  contentStyle={TOOLTIP_STYLE}
+                />
+                <Bar dataKey="count" fill="#D4AF37" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
+
       <RecentBookings bookings={received} userId={user.id} asOwner />
     </>
   )
@@ -149,9 +260,7 @@ function SellerDashboard({ user, jewelry, bookings }: { user: any; jewelry: any[
 
 function AdminDashboard({ user, jewelry, bookings }: { user: any; jewelry: any[]; bookings: any[] }) {
   const active = bookings.filter((b) => b.status === "ACTIVE" || b.status === "CONFIRMED")
-  const revenue = bookings
-    .filter((b) => b.status === "COMPLETED")
-    .reduce((s, b) => s + b.totalPrice, 0)
+  const revenue = bookings.filter((b) => b.status === "COMPLETED").reduce((s, b) => s + b.totalPrice, 0)
 
   return (
     <>
@@ -217,6 +326,14 @@ function AdminDashboard({ user, jewelry, bookings }: { user: any; jewelry: any[]
 function RecentBookings({ bookings, userId, asOwner = false }: { bookings: any[]; userId: string; asOwner?: boolean }) {
   if (bookings.length === 0) return null
 
+  const STATUS_COLORS: Record<string, string> = {
+    PENDING: "text-orange-600",
+    CONFIRMED: "text-blue-600",
+    ACTIVE: "text-green-600",
+    COMPLETED: "text-muted-foreground",
+    CANCELLED: "text-red-500",
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -224,20 +341,21 @@ function RecentBookings({ bookings, userId, asOwner = false }: { bookings: any[]
         <CardDescription>Vos dernières réservations</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="space-y-4">
+        <div className="space-y-0">
           {bookings.slice(0, 5).map((booking) => {
             const isOwner = booking.ownerId === userId
+            const statusColor = STATUS_COLORS[booking.status] ?? ""
             return (
               <div key={booking.id} className="flex items-center justify-between py-3 border-b last:border-0">
-                <div>
-                  <p className="font-medium">{isOwner ? "Bijou loué" : "Location effectuée"}</p>
-                  <p className="text-sm text-muted-foreground">{booking.jewelry?.title || "Bijou"}</p>
+                <div className="min-w-0 flex-1 mr-4">
+                  <p className="font-medium text-sm truncate">{booking.jewelry?.title || "Bijou"}</p>
+                  <p className={`text-xs mt-0.5 ${statusColor}`}>{booking.status}</p>
                 </div>
-                <div className="text-right">
-                  <p className={`font-semibold ${isOwner ? "text-green-600" : ""}`}>
+                <div className="text-right shrink-0">
+                  <p className={`font-semibold text-sm ${isOwner ? "text-green-600" : ""}`}>
                     {isOwner ? "+" : "-"}{formatPrice(booking.totalPrice)}
                   </p>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-xs text-muted-foreground">
                     {new Date(booking.createdAt).toLocaleDateString("fr-FR")}
                   </p>
                 </div>
@@ -260,7 +378,6 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!currentUser) return
-
     if (currentUser.role === "ADMIN") {
       listJewelry()
       listBookings()
@@ -268,7 +385,6 @@ export default function DashboardPage() {
       listJewelry({ ownerId: currentUser.id })
       listBookings({ role: "owner" })
     } else {
-      // BUYER
       listBookings({ role: "renter" })
     }
   }, [currentUser])

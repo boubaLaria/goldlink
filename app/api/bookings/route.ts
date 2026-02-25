@@ -22,12 +22,15 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(Number(searchParams.get('limit')) || 20, 100)
     const skip = Number(searchParams.get('skip')) || 0
 
-    const where: any = {
-      OR: [
-        { renterId: user.id },  // Bookings where user is renter
-        { jewelry: { ownerId: user.id } },  // Bookings where user is jewelry owner
-      ],
-    }
+    // ADMIN sees all bookings; others see only their own
+    const where: any = user.role === 'ADMIN'
+      ? {}
+      : {
+          OR: [
+            { renterId: user.id },
+            { jewelry: { ownerId: user.id } },
+          ],
+        }
 
     if (status) {
       where.status = status

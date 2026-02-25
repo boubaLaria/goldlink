@@ -3,6 +3,36 @@ import { authenticate, sendJSON, sendError, parseJSON } from '@/lib/middleware'
 import prisma from '@/lib/db'
 import { z } from 'zod'
 
+// GET /api/users/[id] — get public user info (auth required)
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    await authenticate(request)
+    const { id } = await params
+    const user = await prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        role: true,
+        avatar: true,
+        verified: true,
+        rating: true,
+        address: true,
+        country: true,
+      },
+    })
+    if (!user) return sendError('User not found', 404)
+    return sendJSON({ data: user })
+  } catch (error) {
+    return sendError('Unauthorized', 401)
+  }
+}
+
 const updateUserSchema = z.object({
   role: z.enum(['BUYER', 'SELLER', 'JEWELER', 'ADMIN']).optional(),
   verified: z.boolean().optional(),
