@@ -11,37 +11,7 @@ import { BookingCard } from "@/components/booking/booking-card"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useBookings } from "@/lib/hooks/use-bookings"
 import { Providers } from "@/app/providers"
-
-function normalizeBooking(booking: any) {
-  return {
-    ...booking,
-    status: booking.status.toLowerCase(),
-    startDate: new Date(booking.startDate),
-    endDate: new Date(booking.endDate),
-    createdAt: new Date(booking.createdAt),
-  }
-}
-
-function normalizeJewelry(jewelry: any) {
-  return {
-    id: jewelry?.id ?? "",
-    title: jewelry?.title ?? "",
-    images: jewelry?.images ?? [],
-    type: jewelry?.type?.toLowerCase() ?? "",
-    location: jewelry?.location ?? "",
-    ownerId: "",
-    description: "",
-    weight: 0,
-    purity: 18,
-    estimatedValue: 0,
-    listingType: [],
-    available: true,
-    views: 0,
-    rating: 0,
-    reviewCount: 0,
-    createdAt: new Date(),
-  }
-}
+import { normalizeBooking, normalizeBookingJewelry } from "@/lib/services/booking.service"
 
 export default function BookingsPage() {
   const router = useRouter()
@@ -97,7 +67,7 @@ export default function BookingsPage() {
                     <BookingCard
                       key={booking.id}
                       booking={normalizeBooking(booking) as any}
-                      jewelry={normalizeJewelry((booking as any).jewelry) as any}
+                      jewelry={normalizeBookingJewelry((booking as any).jewelry) as any}
                     />
                   ))
                 )}
@@ -119,7 +89,7 @@ export default function BookingsPage() {
                     <BookingCard
                       key={booking.id}
                       booking={normalizeBooking(booking) as any}
-                      jewelry={normalizeJewelry((booking as any).jewelry) as any}
+                      jewelry={normalizeBookingJewelry((booking as any).jewelry) as any}
                     />
                   ))
                 )}

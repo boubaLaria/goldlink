@@ -84,7 +84,9 @@ model User {
   rating               Float    @default(0)
   reviewCount          Int      @default(0)
   address              String?
-  cin                  String?  @unique // Moroccan ID
+  country              String   @default("France")      // Seller's country
+  currency             String   @default("EUR")         // EUR, USD, GBP, etc
+  cin                  String?  @unique                 // National ID (country specific)
   
   // Relations
   ownedJewelry         Jewelry[]       @relation("Owner")
@@ -120,12 +122,12 @@ model Jewelry {
   // Specifications
   weight               Float    // Grams
   purity               GoldPurity
-  estimatedValue       Float    // Estimated value in MAD
+  estimatedValue       Float    // Estimated value (in seller's currency)
   
   // Listing info
   listingTypes         ListingType[]
-  rentPricePerDay      Float?   // MAD per day (nullable if sale-only)
-  salePrice            Float?   // MAD (nullable if rent-only)
+  rentPricePerDay      Float?   // Price per day (in seller's currency)
+  salePrice            Float?   // Sale price (in seller's currency)
   available            Boolean  @default(true)
   location             String
   

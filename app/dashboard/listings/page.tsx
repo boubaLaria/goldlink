@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Plus, Edit, Trash2, Eye } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -8,25 +9,34 @@ import { Badge } from "@/components/ui/badge"
 import { Header } from "@/components/layout/header"
 import { Footer } from "@/components/layout/footer"
 import { EmptyState } from "@/components/ui/empty-state"
-import { useStore } from "@/lib/store"
-import { formatPrice, formatWeight, formatPurity } from "@/lib/utils/format"
+import { useAuth } from "@/lib/hooks/use-auth"
+import { useJewelry } from "@/lib/hooks/use-jewelry"
+import { formatPrice, formatWeight } from "@/lib/utils/format"
+import { getJewelryTypeLabel } from "@/lib/services/jewelry.service"
 import { Providers } from "@/app/providers"
 import Link from "next/link"
 
 export default function ListingsPage() {
   const router = useRouter()
-  const { currentUser, jewelry, deleteJewelry } = useStore()
+  const { user: currentUser, loading: authLoading } = useAuth()
+  const { jewelry, loading, list, delete: deleteJewelry } = useJewelry()
+
+  useEffect(() => {
+    if (currentUser) {
+      list({ ownerId: currentUser.id } as any)
+    }
+  }, [currentUser, list])
+
+  if (authLoading) return null
 
   if (!currentUser) {
     router.push("/login")
     return null
   }
 
-  const userJewelry = jewelry.filter((j) => j.ownerId === currentUser.id)
-
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm("Êtes-vous sûr de vouloir supprimer cette annonce ?")) {
-      deleteJewelry(id)
+      await deleteJewelry(id)
     }
   }
 
@@ -49,7 +59,9 @@ export default function ListingsPage() {
               </Button>
             </div>
 
-            {userJewelry.length === 0 ? (
+            {loading ? (
+              <p className="text-muted-foreground">Chargement...</p>
+            ) : jewelry.length === 0 ? (
               <EmptyState
                 icon={Plus}
                 title="Aucune annonce"
@@ -61,7 +73,7 @@ export default function ListingsPage() {
               />
             ) : (
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {userJewelry.map((item) => (
+                {jewelry.map((item) => (
                   <Card key={item.id}>
                     <CardContent className="p-0">
                       <div className="relative aspect-square">
@@ -71,12 +83,12 @@ export default function ListingsPage() {
                           className="object-cover w-full h-full rounded-t-lg"
                         />
                         <div className="absolute top-2 left-2 flex gap-2">
-                          {item.listingType.includes("rent") && (
+                          {item.listingTypes.includes("RENT") && (
                             <Badge variant="secondary" className="bg-primary text-primary-foreground">
                               Location
                             </Badge>
                           )}
-                          {item.listingType.includes("sale") && (
+                          {item.listingTypes.includes("SALE") && (
                             <Badge variant="secondary" className="bg-secondary text-secondary-foreground">
                               Vente
                             </Badge>
@@ -94,9 +106,10 @@ export default function ListingsPage() {
                       <div className="p-4 space-y-3">
                         <h3 className="font-semibold line-clamp-2">{item.title}</h3>
 
-                        <div className="flex items-center gap-4 text-sm">
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
                           <span>{formatWeight(item.weight)}</span>
-                          <span>{formatPurity(item.purity)}</span>
+                          <span>{item.purity}</span>
+                          <span>{getJewelryTypeLabel(item.type)}</span>
                         </div>
 
                         <div className="flex flex-col gap-1">

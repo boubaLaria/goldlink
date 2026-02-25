@@ -3,12 +3,11 @@
 import type React from "react"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { useStore } from "@/lib/store"
+import { useAuth } from "@/lib/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 
@@ -16,34 +15,28 @@ export function LoginForm() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const router = useRouter()
-  const { users, setCurrentUser } = useStore()
+  const { login } = useAuth()
   const { toast } = useToast()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
 
-    // Simulate API call
-    setTimeout(() => {
-      const user = users.find((u) => u.email === email)
-
-      if (user) {
-        setCurrentUser(user)
-        toast({
-          title: "Connexion réussie",
-          description: `Bienvenue ${user.firstName} !`,
-        })
-        router.push("/dashboard")
-      } else {
-        toast({
-          title: "Erreur de connexion",
-          description: "Email ou mot de passe incorrect",
-          variant: "destructive",
-        })
-      }
+    try {
+      await login(email, password)
+      toast({
+        title: "Connexion réussie",
+        description: "Bienvenue !",
+      })
+    } catch (err: any) {
+      toast({
+        title: "Erreur de connexion",
+        description: err.message || "Email ou mot de passe incorrect",
+        variant: "destructive",
+      })
+    } finally {
       setIsLoading(false)
-    }, 1000)
+    }
   }
 
   return (

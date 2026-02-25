@@ -9,22 +9,64 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { useStore } from "@/lib/store"
-import { formatPrice, formatWeight, formatPurity } from "@/lib/utils/format"
+import { useAuth } from "@/lib/hooks/use-auth"
+import { formatPrice, formatWeight } from "@/lib/utils/format"
 import { formatDate } from "@/lib/utils/date"
 import Link from "next/link"
-import type { Jewelry, User, Review } from "@/lib/types"
 
-interface JewelryDetailClientProps {
-  item: Jewelry
-  owner: User
-  itemReviews: Review[]
+type Owner = {
+  id: string
+  firstName: string
+  lastName: string
+  avatar: string | null
+  rating: number
+  verified: boolean
 }
 
-export function JewelryDetailClient({ item, owner, itemReviews }: JewelryDetailClientProps) {
+type ReviewWithReviewer = {
+  id: string
+  rating: number
+  comment: string
+  createdAt: Date | string
+  reviewer: {
+    id: string
+    firstName: string
+    lastName: string
+    avatar: string | null
+  }
+}
+
+type ApiJewelry = {
+  id: string
+  title: string
+  description: string
+  images: string[]
+  type: string
+  weight: number
+  purity: string
+  estimatedValue: number
+  listingTypes: string[]
+  rentPricePerDay: number | null
+  salePrice: number | null
+  available: boolean
+  location: string
+  views: number
+  rating: number
+  reviewCount: number
+  owner: Owner
+  reviews: ReviewWithReviewer[]
+}
+
+interface JewelryDetailClientProps {
+  jewelry: ApiJewelry
+}
+
+export function JewelryDetailClient({ jewelry }: JewelryDetailClientProps) {
   const router = useRouter()
-  const { currentUser, users } = useStore()
+  const { user: currentUser } = useAuth()
   const [selectedImage, setSelectedImage] = useState(0)
+
+  const owner = jewelry.owner
 
   return (
     <div className="py-8">
@@ -39,14 +81,14 @@ export function JewelryDetailClient({ item, owner, itemReviews }: JewelryDetailC
           <div className="space-y-4">
             <div className="relative aspect-square rounded-lg overflow-hidden bg-muted">
               <Image
-                src={item.images[selectedImage] || "/placeholder.svg?height=600&width=600"}
-                alt={item.title}
+                src={jewelry.images[selectedImage] || "/placeholder.svg?height=600&width=600"}
+                alt={jewelry.title}
                 fill
                 className="object-cover"
               />
             </div>
             <div className="grid grid-cols-4 gap-4">
-              {item.images.map((image, index) => (
+              {jewelry.images.map((image, index) => (
                 <button
                   key={index}
                   onClick={() => setSelectedImage(index)}
@@ -69,43 +111,43 @@ export function JewelryDetailClient({ item, owner, itemReviews }: JewelryDetailC
           <div className="space-y-6">
             <div>
               <div className="flex gap-2 mb-3">
-                {item.listingType.includes("rent") && (
+                {jewelry.listingTypes.includes("RENT") && (
                   <Badge variant="secondary" className="bg-primary text-primary-foreground">
                     Location
                   </Badge>
                 )}
-                {item.listingType.includes("sale") && (
+                {jewelry.listingTypes.includes("SALE") && (
                   <Badge variant="secondary" className="bg-secondary text-secondary-foreground">
                     Vente
                   </Badge>
                 )}
               </div>
-              <h1 className="text-3xl font-bold mb-4">{item.title}</h1>
+              <h1 className="text-3xl font-bold mb-4">{jewelry.title}</h1>
 
               <div className="flex items-center gap-4 mb-4">
-                {item.rating > 0 && (
+                {jewelry.rating > 0 && (
                   <div className="flex items-center gap-1">
                     <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
-                    <span className="font-semibold">{item.rating.toFixed(1)}</span>
-                    <span className="text-muted-foreground">({item.reviewCount} avis)</span>
+                    <span className="font-semibold">{jewelry.rating.toFixed(1)}</span>
+                    <span className="text-muted-foreground">({jewelry.reviewCount} avis)</span>
                   </div>
                 )}
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <MapPin className="h-4 w-4" />
-                  <span>{item.location}</span>
+                  <span>{jewelry.location}</span>
                 </div>
               </div>
 
               <div className="flex flex-col gap-2 mb-6">
-                {item.rentPricePerDay && (
+                {jewelry.rentPricePerDay && (
                   <div>
-                    <span className="text-3xl font-bold text-primary">{formatPrice(item.rentPricePerDay)}</span>
+                    <span className="text-3xl font-bold text-primary">{formatPrice(jewelry.rentPricePerDay)}</span>
                     <span className="text-muted-foreground">/jour</span>
                   </div>
                 )}
-                {item.salePrice && (
+                {jewelry.salePrice && (
                   <div>
-                    <span className="text-2xl font-bold">{formatPrice(item.salePrice)}</span>
+                    <span className="text-2xl font-bold">{formatPrice(jewelry.salePrice)}</span>
                     <span className="text-muted-foreground"> prix de vente</span>
                   </div>
                 )}
@@ -119,26 +161,20 @@ export function JewelryDetailClient({ item, owner, itemReviews }: JewelryDetailC
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-muted-foreground">Poids</p>
-                  <p className="font-semibold">{formatWeight(item.weight)}</p>
+                  <p className="font-semibold">{formatWeight(jewelry.weight)}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Pureté</p>
-                  <p className="font-semibold">{formatPurity(item.purity)}</p>
+                  <p className="font-semibold">{jewelry.purity}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Type</p>
-                  <p className="font-semibold capitalize">{item.type}</p>
+                  <p className="font-semibold capitalize">{jewelry.type.toLowerCase()}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Valeur estimée</p>
-                  <p className="font-semibold">{formatPrice(item.estimatedValue)}</p>
+                  <p className="font-semibold">{formatPrice(jewelry.estimatedValue)}</p>
                 </div>
-                {item.dimensions && (
-                  <div className="col-span-2">
-                    <p className="text-sm text-muted-foreground">Dimensions</p>
-                    <p className="font-semibold">{item.dimensions}</p>
-                  </div>
-                )}
               </div>
             </div>
 
@@ -146,7 +182,7 @@ export function JewelryDetailClient({ item, owner, itemReviews }: JewelryDetailC
 
             <div>
               <h2 className="text-xl font-semibold mb-3">Description</h2>
-              <p className="text-muted-foreground leading-relaxed">{item.description}</p>
+              <p className="text-muted-foreground leading-relaxed">{jewelry.description}</p>
             </div>
 
             <Separator />
@@ -197,17 +233,17 @@ export function JewelryDetailClient({ item, owner, itemReviews }: JewelryDetailC
 
             {/* Action Buttons */}
             <div className="flex gap-4">
-              {item.listingType.includes("rent") && (
+              {jewelry.listingTypes.includes("RENT") && (
                 <Button asChild className="flex-1" size="lg">
-                  <Link href={`/booking/${item.id}`}>
+                  <Link href={`/booking/${jewelry.id}`}>
                     <Calendar className="mr-2 h-5 w-5" />
                     Réserver
                   </Link>
                 </Button>
               )}
-              {item.listingType.includes("sale") && (
+              {jewelry.listingTypes.includes("SALE") && (
                 <Button asChild variant="outline" className="flex-1 bg-transparent" size="lg">
-                  <Link href={`/messages?user=${owner.id}&jewelry=${item.id}`}>Faire une offre</Link>
+                  <Link href={`/messages?user=${owner.id}&jewelry=${jewelry.id}`}>Faire une offre</Link>
                 </Button>
               )}
             </div>
@@ -215,53 +251,48 @@ export function JewelryDetailClient({ item, owner, itemReviews }: JewelryDetailC
         </div>
 
         {/* Reviews */}
-        {itemReviews.length > 0 && (
+        {jewelry.reviews.length > 0 && (
           <div className="mt-12">
-            <h2 className="text-2xl font-bold mb-6">Avis ({itemReviews.length})</h2>
+            <h2 className="text-2xl font-bold mb-6">Avis ({jewelry.reviews.length})</h2>
             <div className="space-y-4">
-              {itemReviews.map((review) => {
-                const reviewer = users.find((u) => u.id === review.userId)
-                if (!reviewer) return null
-
-                return (
-                  <Card key={review.id}>
-                    <CardContent className="p-6">
-                      <div className="flex items-start gap-4">
-                        <Avatar>
-                          <AvatarImage src={reviewer.avatar || "/placeholder.svg"} />
-                          <AvatarFallback>
-                            {reviewer.firstName[0]}
-                            {reviewer.lastName[0]}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between mb-2">
-                            <div>
-                              <p className="font-semibold">
-                                {reviewer.firstName} {reviewer.lastName}
-                              </p>
-                              <div className="flex items-center gap-2">
-                                <div className="flex">
-                                  {Array.from({ length: 5 }).map((_, i) => (
-                                    <Star
-                                      key={i}
-                                      className={`h-4 w-4 ${
-                                        i < review.rating ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
-                                      }`}
-                                    />
-                                  ))}
-                                </div>
-                                <span className="text-sm text-muted-foreground">{formatDate(review.createdAt)}</span>
+              {jewelry.reviews.map((review) => (
+                <Card key={review.id}>
+                  <CardContent className="p-6">
+                    <div className="flex items-start gap-4">
+                      <Avatar>
+                        <AvatarImage src={review.reviewer.avatar || "/placeholder.svg"} />
+                        <AvatarFallback>
+                          {review.reviewer.firstName[0]}
+                          {review.reviewer.lastName[0]}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-2">
+                          <div>
+                            <p className="font-semibold">
+                              {review.reviewer.firstName} {review.reviewer.lastName}
+                            </p>
+                            <div className="flex items-center gap-2">
+                              <div className="flex">
+                                {Array.from({ length: 5 }).map((_, i) => (
+                                  <Star
+                                    key={i}
+                                    className={`h-4 w-4 ${
+                                      i < review.rating ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
+                                    }`}
+                                  />
+                                ))}
                               </div>
+                              <span className="text-sm text-muted-foreground">{formatDate(review.createdAt)}</span>
                             </div>
                           </div>
-                          <p className="text-muted-foreground">{review.comment}</p>
                         </div>
+                        <p className="text-muted-foreground">{review.comment}</p>
                       </div>
-                    </CardContent>
-                  </Card>
-                )
-              })}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           </div>
         )}

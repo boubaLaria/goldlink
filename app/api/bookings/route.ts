@@ -24,8 +24,8 @@ export async function GET(request: NextRequest) {
 
     const where: any = {
       OR: [
-        { renterId: user.id },
-        { ownerId: user.id },
+        { renterId: user.id },  // Bookings where user is renter
+        { jewelry: { ownerId: user.id } },  // Bookings where user is jewelry owner
       ],
     }
 

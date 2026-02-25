@@ -21,6 +21,8 @@ export async function GET(request: NextRequest) {
       address: user.address,
       phone: user.phone,
       cin: user.cin,
+      country: user.country,
+      currency: user.currency,
     })
   } catch (error) {
     console.error('Get current user error:', error)

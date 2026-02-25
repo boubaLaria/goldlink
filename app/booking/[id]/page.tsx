@@ -1,16 +1,26 @@
-"use client"
 import { notFound } from "next/navigation"
 import { BookingClient } from "./booking-client"
-import { mockJewelry } from "@/lib/mock-data"
+import prisma from "@/lib/db"
 
 export default async function BookingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
 
-  const item = mockJewelry.find((j) => j.id === id)
+  const jewelry = await prisma.jewelry.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      title: true,
+      location: true,
+      rentPricePerDay: true,
+      estimatedValue: true,
+      listingTypes: true,
+      available: true,
+    },
+  })
 
-  if (!item || !item.rentPricePerDay) {
+  if (!jewelry || !jewelry.listingTypes.includes("RENT") || !jewelry.rentPricePerDay) {
     notFound()
   }
 
-  return <BookingClient item={item} />
+  return <BookingClient item={jewelry} />
 }

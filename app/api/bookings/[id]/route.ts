@@ -20,7 +20,21 @@ export async function GET(
     const booking = await prisma.booking.findUnique({
       where: { id: params.id },
       include: {
-        jewelry: true,
+        jewelry: {
+          include: {
+            owner: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                avatar: true,
+                email: true,
+                phone: true,
+                rating: true,
+              },
+            },
+          },
+        },
         renter: {
           select: {
             id: true,
@@ -32,18 +46,6 @@ export async function GET(
             rating: true,
           },
         },
-        owner: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            avatar: true,
-            email: true,
-            phone: true,
-            rating: true,
-          },
-        },
-        reviews: true,
         transaction: true,
       },
     })
@@ -52,8 +54,8 @@ export async function GET(
       return sendError('Booking not found', 404)
     }
 
-    // Check ownership
-    if (booking.renterId !== user.id && booking.ownerId !== user.id && user.role !== 'ADMIN') {
+    // Check ownership - user must be renter, jewelry owner, or admin
+    if (booking.renterId !== user.id && booking.jewelry.ownerId !== user.id && user.role !== 'ADMIN') {
       return sendError('Forbidden', 403)
     }
 
@@ -76,16 +78,16 @@ export async function PATCH(
 
     const booking = await prisma.booking.findUnique({
       where: { id: params.id },
-      select: { ownerId: true, renterId: true },
+      include: { jewelry: { select: { ownerId: true } } },
     })
 
     if (!booking) {
       return sendError('Booking not found', 404)
     }
 
-    // Only owner or admin can update status
-    if (booking.ownerId !== user.id && user.role !== 'ADMIN') {
-      return sendError('Forbidden', 403)
+    // Only jewelry owner or admin can update status
+    if (booking.jewelry.ownerId !== user.id && user.role !== 'ADMIN') {
+      return sendError('Only jewelry owner can update booking status', 403)
     }
 
     const body = await parseJSON(request)

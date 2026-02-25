@@ -3,16 +3,14 @@
 import type React from "react"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useStore } from "@/lib/store"
+import { useAuth } from "@/lib/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
-import type { UserRole } from "@/lib/types"
 
 export function RegisterForm() {
   const [formData, setFormData] = useState({
@@ -21,39 +19,38 @@ export function RegisterForm() {
     firstName: "",
     lastName: "",
     phone: "",
-    role: "buyer" as UserRole,
+    role: "BUYER",
   })
   const [isLoading, setIsLoading] = useState(false)
-  const router = useRouter()
-  const { addUser, setCurrentUser } = useStore()
+  const { register } = useAuth()
   const { toast } = useToast()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
 
-    // Simulate API call
-    setTimeout(() => {
-      const newUser = {
-        id: Date.now().toString(),
-        ...formData,
-        verified: false,
-        rating: 0,
-        reviewCount: 0,
-        createdAt: new Date(),
-      }
-
-      addUser(newUser)
-      setCurrentUser(newUser)
-
+    try {
+      await register(
+        formData.email,
+        formData.password,
+        formData.firstName,
+        formData.lastName,
+        formData.phone,
+        formData.role,
+      )
       toast({
         title: "Inscription réussie",
         description: "Votre compte a été créé avec succès !",
       })
-
-      router.push("/dashboard")
+    } catch (err: any) {
+      toast({
+        title: "Erreur d'inscription",
+        description: err.message || "Impossible de créer le compte",
+        variant: "destructive",
+      })
+    } finally {
       setIsLoading(false)
-    }, 1000)
+    }
   }
 
   return (
@@ -115,15 +112,15 @@ export function RegisterForm() {
             <Label htmlFor="role">Type de compte</Label>
             <Select
               value={formData.role}
-              onValueChange={(value: UserRole) => setFormData({ ...formData, role: value })}
+              onValueChange={(value) => setFormData({ ...formData, role: value })}
             >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="buyer">Acheteur / Locataire</SelectItem>
-                <SelectItem value="seller">Vendeur / Propriétaire</SelectItem>
-                <SelectItem value="jeweler">Bijoutier</SelectItem>
+                <SelectItem value="BUYER">Acheteur / Locataire</SelectItem>
+                <SelectItem value="SELLER">Vendeur / Propriétaire</SelectItem>
+                <SelectItem value="JEWELER">Bijoutier</SelectItem>
               </SelectContent>
             </Select>
           </div>

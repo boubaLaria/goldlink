@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
-import { useStore } from "@/lib/store"
+import { useAuth } from "@/lib/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
 import { formatPrice } from "@/lib/utils/format"
 import { calculateDaysBetween } from "@/lib/utils/date"
@@ -17,15 +17,23 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
-import type { Jewelry } from "@/lib/types"
+import apiClient from "@/lib/api-client"
+
+type BookingItem = {
+  id: string
+  title: string
+  location: string
+  rentPricePerDay: number | null
+  estimatedValue: number
+}
 
 interface BookingClientProps {
-  item: Jewelry
+  item: BookingItem
 }
 
 export function BookingClient({ item }: BookingClientProps) {
   const router = useRouter()
-  const { currentUser, addBooking, addTransaction } = useStore()
+  const { user: currentUser, loading } = useAuth()
   const { toast } = useToast()
 
   const [startDate, setStartDate] = useState<Date>()
@@ -33,6 +41,14 @@ export function BookingClient({ item }: BookingClientProps) {
   const [insurance, setInsurance] = useState(false)
   const [acceptTerms, setAcceptTerms] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <p className="text-muted-foreground">Chargement...</p>
+      </div>
+    )
+  }
 
   if (!currentUser) {
     return (
@@ -58,7 +74,7 @@ export function BookingClient({ item }: BookingClientProps) {
   const deposit = item.estimatedValue * 0.1
   const totalPrice = rentalPrice + insurancePrice
 
-  const handleBooking = () => {
+  const handleBooking = async () => {
     if (!startDate || !endDate) {
       toast({
         title: "Dates manquantes",
@@ -78,51 +94,29 @@ export function BookingClient({ item }: BookingClientProps) {
     }
 
     setIsProcessing(true)
-
-    // Simulate payment processing
-    setTimeout(() => {
-      const bookingId = Date.now().toString()
-
-      const newBooking = {
-        id: bookingId,
+    try {
+      await apiClient.post("/api/bookings", {
         jewelryId: item.id,
-        renterId: currentUser.id,
-        ownerId: item.ownerId,
-        startDate,
-        endDate,
-        totalPrice,
-        deposit,
-        status: "confirmed" as const,
-        createdAt: new Date(),
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
         insurance,
-      }
-
-      addBooking(newBooking)
-
-      // Add transaction
-      const transaction = {
-        id: Date.now().toString(),
-        bookingId,
-        jewelryId: item.id,
-        buyerId: currentUser.id,
-        sellerId: item.ownerId,
-        amount: totalPrice,
-        commission: totalPrice * 0.1,
-        status: "completed" as const,
-        type: "rent" as const,
-        createdAt: new Date(),
-      }
-
-      addTransaction(transaction)
+      })
 
       toast({
         title: "Réservation confirmée",
         description: "Votre réservation a été effectuée avec succès",
       })
 
-      setIsProcessing(false)
       router.push("/dashboard/bookings")
-    }, 2000)
+    } catch (err: any) {
+      toast({
+        title: "Erreur",
+        description: err.message || "Impossible de créer la réservation",
+        variant: "destructive",
+      })
+    } finally {
+      setIsProcessing(false)
+    }
   }
 
   return (

@@ -14,28 +14,29 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox"
 import { Header } from "@/components/layout/header"
 import { Footer } from "@/components/layout/footer"
-import { useStore } from "@/lib/store"
+import { useAuth } from "@/lib/hooks/use-auth"
+import { useJewelry } from "@/lib/hooks/use-jewelry"
 import { useToast } from "@/hooks/use-toast"
 import { Providers } from "@/app/providers"
-import type { JewelryType, ListingType } from "@/lib/types"
+import { JEWELRY_TYPES, PURITY_OPTIONS, LOCATIONS, buildJewelryPayload } from "@/lib/services/jewelry.service"
 
 export default function NewJewelryPage() {
   const router = useRouter()
-  const { currentUser, addJewelry } = useStore()
+  const { user: currentUser, loading: authLoading } = useAuth()
+  const { create, loading } = useJewelry()
   const { toast } = useToast()
 
   const [formData, setFormData] = useState({
     title: "",
     description: "",
-    type: "" as JewelryType,
+    type: "",
     weight: "",
     purity: "",
-    dimensions: "",
     estimatedValue: "",
     location: "",
     rentPricePerDay: "",
     salePrice: "",
-    listingType: [] as ListingType[],
+    listingTypes: [] as string[],
   })
 
   const [images, setImages] = useState<string[]>([])
@@ -43,8 +44,6 @@ export default function NewJewelryPage() {
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (files) {
-      // In a real app, you would upload to a server
-      // For now, we'll use placeholder images
       const newImages = Array.from(files).map(
         (_, index) => `/placeholder.svg?height=400&width=400&text=Image${images.length + index + 1}`,
       )
@@ -56,19 +55,19 @@ export default function NewJewelryPage() {
     setImages(images.filter((_, i) => i !== index))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const toggleListingType = (type: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      listingTypes: prev.listingTypes.includes(type)
+        ? prev.listingTypes.filter((t) => t !== type)
+        : [...prev.listingTypes, type],
+    }))
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!currentUser) {
-      toast({
-        title: "Erreur",
-        description: "Vous devez être connecté pour créer une annonce",
-        variant: "destructive",
-      })
-      return
-    }
-
-    if (formData.listingType.length === 0) {
+    if (formData.listingTypes.length === 0) {
       toast({
         title: "Erreur",
         description: "Veuillez sélectionner au moins un type d'annonce",
@@ -77,51 +76,24 @@ export default function NewJewelryPage() {
       return
     }
 
-    const newJewelry = {
-      id: Date.now().toString(),
-      ownerId: currentUser.id,
-      title: formData.title,
-      description: formData.description,
-      images: images.length > 0 ? images : ["/placeholder.svg?height=400&width=400"],
-      type: formData.type,
-      weight: Number.parseFloat(formData.weight),
-      purity: Number.parseInt(formData.purity),
-      dimensions: formData.dimensions || undefined,
-      estimatedValue: Number.parseFloat(formData.estimatedValue),
-      listingType: formData.listingType,
-      rentPricePerDay: formData.listingType.includes("rent") ? Number.parseFloat(formData.rentPricePerDay) : undefined,
-      salePrice: formData.listingType.includes("sale") ? Number.parseFloat(formData.salePrice) : undefined,
-      available: true,
-      location: formData.location,
-      createdAt: new Date(),
-      views: 0,
-      rating: 0,
-      reviewCount: 0,
-    }
-
-    addJewelry(newJewelry)
-
-    toast({
-      title: "Annonce créée",
-      description: "Votre bijou a été ajouté au catalogue avec succès",
-    })
-
-    router.push(`/jewelry/${newJewelry.id}`)
-  }
-
-  const toggleListingType = (type: ListingType) => {
-    if (formData.listingType.includes(type)) {
-      setFormData({
-        ...formData,
-        listingType: formData.listingType.filter((t) => t !== type),
+    try {
+      const payload = buildJewelryPayload({ ...formData, images })
+      const newJewelry = await create(payload)
+      toast({
+        title: "Annonce créée",
+        description: "Votre bijou a été ajouté au catalogue avec succès",
       })
-    } else {
-      setFormData({
-        ...formData,
-        listingType: [...formData.listingType, type],
+      router.push(`/jewelry/${newJewelry.id}`)
+    } catch (err: any) {
+      toast({
+        title: "Erreur",
+        description: err.message || "Impossible de créer l'annonce",
+        variant: "destructive",
       })
     }
   }
+
+  if (authLoading) return null
 
   if (!currentUser) {
     return (
@@ -137,6 +109,33 @@ export default function NewJewelryPage() {
               <CardContent>
                 <Button onClick={() => router.push("/login")} className="w-full">
                   Se connecter
+                </Button>
+              </CardContent>
+            </Card>
+          </main>
+          <Footer />
+        </div>
+      </Providers>
+    )
+  }
+
+  if (!['SELLER', 'JEWELER', 'ADMIN'].includes(currentUser.role)) {
+    return (
+      <Providers>
+        <div className="flex flex-col min-h-screen">
+          <Header />
+          <main className="flex-1 flex items-center justify-center">
+            <Card className="max-w-md">
+              <CardHeader>
+                <CardTitle>Accès refusé</CardTitle>
+                <CardDescription>
+                  Seuls les vendeurs et bijoutiers peuvent créer des annonces.
+                  Mettez à jour votre profil dans les paramètres.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button onClick={() => router.push("/settings")} className="w-full">
+                  Paramètres du compte
                 </Button>
               </CardContent>
             </Card>
@@ -227,18 +226,15 @@ export default function NewJewelryPage() {
                       <Label htmlFor="type">Type de bijou *</Label>
                       <Select
                         value={formData.type}
-                        onValueChange={(value: JewelryType) => setFormData({ ...formData, type: value })}
+                        onValueChange={(value) => setFormData({ ...formData, type: value })}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Sélectionner" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="necklace">Collier</SelectItem>
-                          <SelectItem value="bracelet">Bracelet</SelectItem>
-                          <SelectItem value="ring">Bague</SelectItem>
-                          <SelectItem value="earrings">Boucles d'oreilles</SelectItem>
-                          <SelectItem value="pendant">Pendentif</SelectItem>
-                          <SelectItem value="chain">Chaîne</SelectItem>
+                          {JEWELRY_TYPES.map((t) => (
+                            <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
@@ -253,9 +249,9 @@ export default function NewJewelryPage() {
                           <SelectValue placeholder="Sélectionner" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="18">18K</SelectItem>
-                          <SelectItem value="22">22K</SelectItem>
-                          <SelectItem value="24">24K</SelectItem>
+                          {PURITY_OPTIONS.map((p) => (
+                            <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
@@ -274,16 +270,6 @@ export default function NewJewelryPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="dimensions">Dimensions</Label>
-                      <Input
-                        id="dimensions"
-                        placeholder="Ex: 45cm de longueur"
-                        value={formData.dimensions}
-                        onChange={(e) => setFormData({ ...formData, dimensions: e.target.value })}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
                       <Label htmlFor="estimatedValue">Valeur estimée (MAD) *</Label>
                       <Input
                         id="estimatedValue"
@@ -295,7 +281,7 @@ export default function NewJewelryPage() {
                       />
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="space-y-2 md:col-span-2">
                       <Label htmlFor="location">Localisation *</Label>
                       <Select
                         value={formData.location}
@@ -305,11 +291,9 @@ export default function NewJewelryPage() {
                           <SelectValue placeholder="Sélectionner" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="Casablanca">Casablanca</SelectItem>
-                          <SelectItem value="Marrakech">Marrakech</SelectItem>
-                          <SelectItem value="Rabat">Rabat</SelectItem>
-                          <SelectItem value="Fès">Fès</SelectItem>
-                          <SelectItem value="Tanger">Tanger</SelectItem>
+                          {LOCATIONS.map((loc) => (
+                            <SelectItem key={loc} value={loc}>{loc}</SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
@@ -322,14 +306,12 @@ export default function NewJewelryPage() {
                       <div className="flex items-center space-x-2">
                         <Checkbox
                           id="rent"
-                          checked={formData.listingType.includes("rent")}
-                          onCheckedChange={() => toggleListingType("rent")}
+                          checked={formData.listingTypes.includes("RENT")}
+                          onCheckedChange={() => toggleListingType("RENT")}
                         />
-                        <Label htmlFor="rent" className="font-normal cursor-pointer">
-                          Location
-                        </Label>
+                        <Label htmlFor="rent" className="font-normal cursor-pointer">Location</Label>
                       </div>
-                      {formData.listingType.includes("rent") && (
+                      {formData.listingTypes.includes("RENT") && (
                         <div className="ml-6 space-y-2">
                           <Label htmlFor="rentPrice">Prix de location par jour (MAD)</Label>
                           <Input
@@ -338,7 +320,7 @@ export default function NewJewelryPage() {
                             placeholder="Ex: 1200"
                             value={formData.rentPricePerDay}
                             onChange={(e) => setFormData({ ...formData, rentPricePerDay: e.target.value })}
-                            required={formData.listingType.includes("rent")}
+                            required={formData.listingTypes.includes("RENT")}
                           />
                         </div>
                       )}
@@ -346,14 +328,12 @@ export default function NewJewelryPage() {
                       <div className="flex items-center space-x-2">
                         <Checkbox
                           id="sale"
-                          checked={formData.listingType.includes("sale")}
-                          onCheckedChange={() => toggleListingType("sale")}
+                          checked={formData.listingTypes.includes("SALE")}
+                          onCheckedChange={() => toggleListingType("SALE")}
                         />
-                        <Label htmlFor="sale" className="font-normal cursor-pointer">
-                          Vente
-                        </Label>
+                        <Label htmlFor="sale" className="font-normal cursor-pointer">Vente</Label>
                       </div>
-                      {formData.listingType.includes("sale") && (
+                      {formData.listingTypes.includes("SALE") && (
                         <div className="ml-6 space-y-2">
                           <Label htmlFor="salePrice">Prix de vente (MAD)</Label>
                           <Input
@@ -362,7 +342,7 @@ export default function NewJewelryPage() {
                             placeholder="Ex: 85000"
                             value={formData.salePrice}
                             onChange={(e) => setFormData({ ...formData, salePrice: e.target.value })}
-                            required={formData.listingType.includes("sale")}
+                            required={formData.listingTypes.includes("SALE")}
                           />
                         </div>
                       )}
@@ -378,8 +358,8 @@ export default function NewJewelryPage() {
                     >
                       Annuler
                     </Button>
-                    <Button type="submit" className="flex-1">
-                      Publier l'annonce
+                    <Button type="submit" className="flex-1" disabled={loading}>
+                      {loading ? "Publication..." : "Publier l'annonce"}
                     </Button>
                   </div>
                 </form>

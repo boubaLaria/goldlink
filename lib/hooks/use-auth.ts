@@ -16,6 +16,8 @@ export interface User {
   address?: string
   phone?: string
   cin?: string
+  country?: string
+  currency?: string
 }
 
 export interface UseAuthReturn {
@@ -36,11 +38,57 @@ export function useAuth(): UseAuthReturn {
   // Load current user on mount
   useEffect(() => {
     const loadUser = async () => {
-      const token = localStorage.getItem('accessToken')
+      // Only run on client side
+      if (typeof window === 'undefined') return
+
+      const token = typeof window !== 'undefined' 
+        ? localStorage.getItem('accessToken')
+        : null
+
       if (token) {
         try {
-          const userData = await apiClient.get('/api/auth/me')
-          setUser(userData)
+          const response = await fetch('/api/auth/me', {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          })
+
+          if (response.ok) {
+            const userData = await response.json()
+            setUser(userData)
+          } else if (response.status === 401) {
+            // Token expired, try to refresh
+            const refreshToken = localStorage.getItem('refreshToken')
+            if (refreshToken) {
+              const refreshResponse = await fetch('/api/auth/refresh', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ refreshToken }),
+              })
+              if (refreshResponse.ok) {
+                const { accessToken: newToken } = await refreshResponse.json()
+                localStorage.setItem('accessToken', newToken)
+                // Retry loading user
+                const retryResponse = await fetch('/api/auth/me', {
+                  headers: {
+                    'Authorization': `Bearer ${newToken}`,
+                    'Content-Type': 'application/json',
+                  },
+                })
+                if (retryResponse.ok) {
+                  const userData = await retryResponse.json()
+                  setUser(userData)
+                } else {
+                  localStorage.removeItem('accessToken')
+                  localStorage.removeItem('refreshToken')
+                }
+              }
+            } else {
+              localStorage.removeItem('accessToken')
+              localStorage.removeItem('refreshToken')
+            }
+          }
         } catch (error) {
           // Token invalid or expired
           localStorage.removeItem('accessToken')

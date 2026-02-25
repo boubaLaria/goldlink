@@ -53,6 +53,8 @@ export async function POST(request: NextRequest) {
         verified: user.verified,
         rating: user.rating,
         address: user.address,
+        country: user.country,
+        currency: user.currency,
       },
       accessToken,
       refreshToken,
