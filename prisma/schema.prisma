@@ -1,0 +1,323 @@
+// GOLDLINK PRISMA SCHEMA
+// Marketplace for jewelry rental and sales
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+enum UserRole {
+  BUYER
+  SELLER
+  JEWELER
+  ADMIN
+}
+
+enum JewelryType {
+  NECKLACE
+  BRACELET
+  RING
+  EARRINGS
+  PENDANT
+  CHAIN
+}
+
+enum ListingType {
+  RENT
+  SALE
+  EXCHANGE
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+  DISPUTE
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  REFUNDED
+  DISPUTED
+}
+
+enum MessageStatus {
+  SENT
+  READ
+}
+
+enum GoldPurity {
+  K8
+  K10
+  K14
+  K18
+  K22
+  K24
+}
+
+// ============================================================================
+// MODELS
+// ============================================================================
+
+model User {
+  id                   String   @id @default(cuid())
+  email                String   @unique
+  hashedPassword       String
+  firstName            String
+  lastName             String
+  phone                String?
+  role                 UserRole @default(BUYER)
+  avatar               String?  // Path to avatar image
+  verified             Boolean  @default(false)
+  verificationToken    String?  @unique
+  rating               Float    @default(0)
+  reviewCount          Int      @default(0)
+  address              String?
+  cin                  String?  @unique // Moroccan ID
+  
+  // Relations
+  ownedJewelry         Jewelry[]       @relation("Owner")
+  rentalBookingsAsRenter Booking[]     @relation("Renter")
+  rentalBookingsAsOwner  Booking[]     @relation("Owner")
+  sentMessages         Message[]       @relation("Sender")
+  receivedMessages     Message[]       @relation("Receiver")
+  conversationsAsUser1 Conversation[]  @relation("User1")
+  conversationsAsUser2 Conversation[]  @relation("User2")
+  sellerTransactions   Transaction[]   @relation("Seller")
+  buyerTransactions    Transaction[]   @relation("Buyer")
+  reviewsGiven         Review[]        @relation("Reviewer")
+  reviewsReceived      Review[]        @relation("Target")
+  estimations          Estimation[]    @relation("User")
+  
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+model Jewelry {
+  id                   String   @id @default(cuid())
+  
+  // Owner info
+  ownerId              String
+  owner                User     @relation("Owner", fields: [ownerId], references: [id], onDelete: Cascade)
+  
+  // Basic info
+  title                String
+  description          String   @db.Text
+  images               String[] // Array of image paths
+  type                 JewelryType
+  
+  // Specifications
+  weight               Float    // Grams
+  purity               GoldPurity
+  estimatedValue       Float    // Estimated value in MAD
+  
+  // Listing info
+  listingTypes         ListingType[]
+  rentPricePerDay      Float?   // MAD per day (nullable if sale-only)
+  salePrice            Float?   // MAD (nullable if rent-only)
+  available            Boolean  @default(true)
+  location             String
+  
+  // Engagement metrics
+  views                Int      @default(0)
+  rating               Float    @default(0)
+  reviewCount          Int      @default(0)
+  
+  // Relations
+  bookings             Booking[]
+  transactions         Transaction[]
+  reviews              Review[]
+  
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+model Booking {
+  id                   String   @id @default(cuid())
+  
+  // Jewelry and participants
+  jewelryId            String
+  jewelry              Jewelry  @relation(fields: [jewelryId], references: [id], onDelete: Cascade)
+  
+  renterId             String
+  renter               User     @relation("Renter", fields: [renterId], references: [id], onDelete: Cascade)
+  
+  ownerId              String
+  owner                User     @relation("Owner", fields: [ownerId], references: [id], onDelete: Cascade)
+  
+  // Dates and pricing
+  startDate            DateTime
+  endDate              DateTime
+  totalPrice           Float
+  deposit              Float
+  
+  // Status and insurance
+  status               BookingStatus @default(PENDING)
+  insurance            Boolean  @default(false)
+  
+  // Relations
+  transaction          Transaction?
+  reviews              Review[]
+  
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([renterId])
+  @@index([ownerId])
+  @@index([jewelryId])
+}
+
+model Transaction {
+  id                   String   @id @default(cuid())
+  
+  // Links to booking or jewelry (One booking = One transaction)
+  bookingId            String?  @unique
+  booking              Booking? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  
+  jewelryId            String?
+  jewelry              Jewelry? @relation(fields: [jewelryId], references: [id], onDelete: SetNull)
+  
+  // Participants
+  buyerId              String
+  buyer                User     @relation("Buyer", fields: [buyerId], references: [id], onDelete: Cascade)
+  
+  sellerId             String
+  seller               User     @relation("Seller", fields: [sellerId], references: [id], onDelete: Cascade)
+  
+  // Financial
+  amount               Float
+  commission           Float    // GoldLink commission
+  status               TransactionStatus @default(PENDING)
+  type                 ListingType // RENT or SALE
+  
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([buyerId])
+  @@index([sellerId])
+}
+
+model Message {
+  id                   String   @id @default(cuid())
+  
+  // Participants
+  senderId             String
+  sender               User     @relation("Sender", fields: [senderId], references: [id], onDelete: Cascade)
+  
+  receiverId           String
+  receiver             User     @relation("Receiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  
+  // Conversation
+  conversationId       String
+  conversation         Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  
+  // Content
+  content              String   @db.Text
+  images               String[] // Array of image paths
+  status               MessageStatus @default(SENT)
+  
+  createdAt            DateTime @default(now())
+
+  @@index([conversationId])
+  @@index([senderId])
+}
+
+model Conversation {
+  id                   String   @id @default(cuid())
+  
+  // Participants
+  user1Id              String
+  user1                User     @relation("User1", fields: [user1Id], references: [id], onDelete: Cascade)
+  
+  user2Id              String
+  user2                User     @relation("User2", fields: [user2Id], references: [id], onDelete: Cascade)
+  
+  // Messages
+  messages             Message[]
+  lastMessageId        String?
+  
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@unique([user1Id, user2Id])
+  @@index([user1Id])
+  @@index([user2Id])
+}
+
+model Review {
+  id                   String   @id @default(cuid())
+  
+  // Reviewer
+  reviewerId           String
+  reviewer             User     @relation("Reviewer", fields: [reviewerId], references: [id], onDelete: Cascade)
+  
+  // Target (can be User or Jewelry)
+  targetId             String
+  targetType           String   // "user" or "jewelry"
+  
+  // For Jewelry reviews
+  jewelryId            String?
+  jewelry              Jewelry? @relation(fields: [jewelryId], references: [id], onDelete: Cascade)
+  
+  // For User reviews
+  targetUserId         String?
+  targetUser           User?    @relation("Target", fields: [targetUserId], references: [id], onDelete: Cascade)
+  
+  // For Booking context
+  bookingId            String?
+  booking              Booking? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  
+  // Rating and comment
+  rating               Int      // 1-5
+  comment              String   @db.Text
+  
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([reviewerId])
+  @@index([jewelryId])
+  @@index([targetUserId])
+}
+
+model Estimation {
+  id                   String   @id @default(cuid())
+  
+  // User who requested
+  userId               String
+  user                 User     @relation("User", fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Jewelry details
+  images               String[] // Array of image paths
+  weight               Float
+  purity               GoldPurity
+  
+  // Valuation
+  estimatedGoldValue   Float    // Pure gold value
+  estimatedCommercialValue Float // Commercial value with markup
+  confidence           Float    // 0-1 confidence score
+  certified            Boolean  @default(false)
+  
+  createdAt            DateTime @default(now())
+
+  @@index([userId])
+}
+
+// ============================================================================
+// MIGRATION NOTES
+// - All timestamps use UTC via now() and updatedAt
+// - Images stored as URL paths (uploaded to public/uploads/)
+// - IDs are CUID for better distributed system support
+// - Indexes on foreign keys and common filters for performance
+// - Cascade delete to maintain referential integrity
+// ============================================================================
