@@ -66,6 +66,26 @@ enum GoldPurity {
   K24
 }
 
+enum TryOnType {
+  FACE      // Boucles d'oreilles, ear cuffs
+  NECK      // Colliers, chaînes, pendentifs
+  WRIST     // Bracelets
+  FINGER    // Bagues
+  MULTI     // Parures (plusieurs zones)
+}
+
+enum TryOnMode {
+  WEBCAM
+  UPLOAD
+}
+
+enum TryOnSessionStatus {
+  PENDING
+  PROCESSING
+  DONE
+  FAILED
+}
+
 // ============================================================================
 // MODELS
 // ============================================================================
@@ -101,7 +121,8 @@ model User {
   reviewsGiven         Review[]        @relation("Reviewer")
   reviewsReceived      Review[]        @relation("Target")
   estimations          Estimation[]    @relation("User")
-  
+  tryOnSessions        TryOnSession[]
+
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 }
@@ -138,11 +159,17 @@ model Jewelry {
   rating               Float    @default(0)
   reviewCount          Int      @default(0)
   
+  // Virtual try-on
+  tryOnAvailable       Boolean     @default(false)
+  tryOnType            TryOnType?
+  tryOnImageUrl        String?     // URL du PNG transparent validé
+
   // Relations
   bookings             Booking[]
   transactions         Transaction[]
   reviews              Review[]
-  
+  tryOnSessions        TryOnSession[]
+
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 }
@@ -315,6 +342,35 @@ model Estimation {
   createdAt            DateTime @default(now())
 
   @@index([userId])
+}
+
+model TryOnSession {
+  id                   String             @id @default(cuid())
+
+  // Participants
+  userId               String
+  user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  jewelryId            String
+  jewelry              Jewelry            @relation(fields: [jewelryId], references: [id], onDelete: Cascade)
+
+  // Session info
+  mode                 TryOnMode
+  status               TryOnSessionStatus @default(PENDING)
+
+  // Images
+  inputImageUrl        String?            // Photo de l'utilisateur (null si webcam sans sauvegarde)
+  outputImageUrl       String?            // Image générée par ComfyUI
+
+  // ComfyUI tracking
+  comfyPromptId        String?            // ID du job ComfyUI pour le polling
+
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  @@index([userId])
+  @@index([jewelryId])
+  @@index([status])
 }
 
 // ============================================================================

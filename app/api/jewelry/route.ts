@@ -17,6 +17,9 @@ const jewelryCreateSchema = z.object({
   location: z.string().min(1),
   country: z.string().min(1).default('France'),
   currency: z.string().min(1).default('EUR'),
+  tryOnAvailable: z.boolean().default(false),
+  tryOnType: z.enum(['FACE', 'NECK', 'WRIST', 'FINGER', 'MULTI']).optional(),
+  tryOnImageUrl: z.string().optional(),
 })
 
 export async function GET(request: NextRequest) {
@@ -31,11 +34,16 @@ export async function GET(request: NextRequest) {
     const location = searchParams.get('location')
     const search = searchParams.get('search')
     const ownerId = searchParams.get('ownerId')
+    const tryOnAvailable = searchParams.get('tryOnAvailable')
     const limit = Math.min(Number(searchParams.get('limit')) || 20, 100)
     const skip = Number(searchParams.get('skip')) || 0
 
     // Build filter - when filtering by owner, show all their jewelry; otherwise only available
     const where: any = ownerId ? { ownerId } : { available: true }
+
+    if (tryOnAvailable === 'true') {
+      where.tryOnAvailable = true
+    }
 
     if (type) {
       where.type = type
@@ -150,6 +158,11 @@ export async function POST(request: NextRequest) {
     }
     if (data.listingTypes.includes('SALE') && !data.salePrice) {
       return sendError('Sale price is required for sale listings', 400)
+    }
+
+    // Valider la cohérence try-on
+    if (data.tryOnAvailable && (!data.tryOnType || !data.tryOnImageUrl)) {
+      return sendError('tryOnType and tryOnImageUrl are required when tryOnAvailable is true', 400)
     }
 
     // Create jewelry

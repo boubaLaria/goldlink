@@ -2,6 +2,10 @@
 
 export type UserRole = "buyer" | "seller" | "jeweler" | "admin"
 
+export type TryOnType = "FACE" | "NECK" | "WRIST" | "FINGER" | "MULTI"
+export type TryOnMode = "WEBCAM" | "UPLOAD"
+export type TryOnSessionStatus = "PENDING" | "PROCESSING" | "DONE" | "FAILED"
+
 export type JewelryType = "necklace" | "bracelet" | "ring" | "earrings" | "pendant" | "chain"
 
 export type ListingType = "rent" | "sale" | "exchange"
@@ -47,10 +51,15 @@ export interface Jewelry {
   available: boolean
   availableDates?: Date[]
   location: string
+  country?: string
+  currency?: string
   createdAt: Date
   views: number
   rating: number
   reviewCount: number
+  tryOnAvailable: boolean
+  tryOnType?: TryOnType
+  tryOnImageUrl?: string
 }
 
 export interface Booking {
@@ -119,4 +128,18 @@ export interface Estimation {
   confidence: number
   certified: boolean
   createdAt: Date
+}
+
+export interface TryOnSession {
+  id: string
+  userId: string
+  jewelryId: string
+  jewelry?: Jewelry
+  mode: TryOnMode
+  status: TryOnSessionStatus
+  inputImageUrl?: string
+  outputImageUrl?: string
+  comfyPromptId?: string
+  createdAt: Date
+  updatedAt: Date
 }
