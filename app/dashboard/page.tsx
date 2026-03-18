@@ -9,6 +9,7 @@ import { Footer } from "@/components/layout/footer"
 import { BuyerDashboard } from "@/components/dashboard/buyer-dashboard"
 import { SellerDashboard } from "@/components/dashboard/seller-dashboard"
 import { AdminDashboard } from "@/components/dashboard/admin-dashboard"
+import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useJewelry } from "@/lib/hooks/use-jewelry"
 import { useBookings } from "@/lib/hooks/use-bookings"
@@ -38,8 +39,10 @@ export default function DashboardPage() {
       <Providers>
         <div className="flex flex-col min-h-screen">
           <Header />
-          <main className="flex-1 flex items-center justify-center">
-            <p className="text-muted-foreground">Chargement...</p>
+          <main className="flex-1 py-8">
+            <div className="container mx-auto px-4">
+              <DashboardSkeleton />
+            </div>
           </main>
           <Footer />
         </div>

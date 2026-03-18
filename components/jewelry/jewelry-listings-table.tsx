@@ -25,7 +25,7 @@ interface JewelryListingsTableProps {
 
 export function JewelryListingsTable({ jewelry, onEdit, onDelete, onToggleAvailable }: JewelryListingsTableProps) {
   return (
-    <div className="rounded-lg border overflow-hidden">
+    <div className="rounded-lg border overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow>

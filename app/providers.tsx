@@ -2,15 +2,13 @@
 
 import type React from "react"
 import { ThemeProvider } from "@/components/theme-provider"
+import { Toaster } from "sonner"
 
-/**
- * Providers - Root context provider wrapper
- * Handles global providers like theme, state management, etc.
- */
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
       {children}
+      <Toaster position="bottom-right" richColors closeButton />
     </ThemeProvider>
   )
 }

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowLeft, Sparkles, Camera, ImageIcon, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -13,6 +13,7 @@ import { PhotoUploadView } from "@/components/tryon/photo-upload-view"
 import { TryOnResultPanel } from "@/components/tryon/tryon-result-panel"
 import { useTryOn } from "@/lib/hooks/use-tryon"
 import { useAuth } from "@/lib/hooks/use-auth"
+import { toast } from "sonner"
 import { Providers } from "@/app/providers"
 import Link from "next/link"
 import type { TryOnMode } from "@/lib/types"
@@ -48,6 +49,7 @@ export function TryOnClient({ jewelry }: TryOnClientProps) {
   const [step, setStep] = useState<Step>("capture")
   const [capturedDataUrl, setCapturedDataUrl] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<"webcam" | "photo">("webcam")
+  const prevSessionStatus = useRef<string | null>(null)
 
   useEffect(() => {
     checkStatus()
@@ -58,19 +60,27 @@ export function TryOnClient({ jewelry }: TryOnClientProps) {
     if (!authLoading && !user) router.push(`/login?redirect=/jewelry/${jewelry.id}/try-on`)
   }, [user, authLoading, jewelry.id, router])
 
-  // Sync step with session status
+  // Sync step with session status + toasts on transitions
   useEffect(() => {
     if (session) setStep("rendering")
   }, [session])
+
+  useEffect(() => {
+    if (!session || session.status === prevSessionStatus.current) return
+    prevSessionStatus.current = session.status
+    if (session.status === "DONE")    toast.success("Rendu généré avec succès !")
+    if (session.status === "FAILED")  toast.error("Le rendu a échoué. Réessayez.")
+    if (session.status === "PROCESSING") toast.info("Génération du rendu IA en cours…")
+  }, [session?.status])
 
   const handleCapture = async (dataUrl: string) => {
     setCapturedDataUrl(dataUrl)
     const mode: TryOnMode = activeTab === "webcam" ? "WEBCAM" : "UPLOAD"
     try {
       await start(jewelry.id, dataUrl, mode)
-      // step transitions to "rendering" via useEffect above
+      toast.info("Photo envoyée, génération en cours…")
     } catch {
-      // error state handled by useTryOn
+      toast.error("Impossible de démarrer l'essayage.")
     }
   }
 

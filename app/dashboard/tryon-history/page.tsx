@@ -2,7 +2,7 @@
 
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Sparkles, Gem, Trash2, ExternalLink, Loader2 } from "lucide-react"
+import { Sparkles, Gem, Trash2, ExternalLink, Loader2, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
@@ -10,6 +10,8 @@ import { Header } from "@/components/layout/header"
 import { Footer } from "@/components/layout/footer"
 import { useTryOn } from "@/lib/hooks/use-tryon"
 import { useAuth } from "@/lib/hooks/use-auth"
+import { toast } from "sonner"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Providers } from "@/app/providers"
 import Link from "next/link"
 
@@ -49,9 +51,16 @@ export default function TryOnHistoryPage() {
             </div>
 
             {historyLoading ? (
-              <div className="flex items-center justify-center py-24 gap-3 text-muted-foreground">
-                <Loader2 className="h-5 w-5 animate-spin" />
-                Chargement…
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="rounded-xl border overflow-hidden">
+                    <Skeleton className="aspect-video w-full rounded-none" />
+                    <div className="p-3 space-y-2">
+                      <Skeleton className="h-3 w-32" />
+                      <Skeleton className="h-8 w-full rounded-md" />
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : history.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-24 gap-4 text-muted-foreground">
@@ -113,7 +122,7 @@ export default function TryOnHistoryPage() {
                           variant="ghost"
                           size="sm"
                           className="text-destructive hover:text-destructive"
-                          onClick={() => deleteSession(session.id)}
+                          onClick={() => { deleteSession(session.id); toast.success("Essayage supprimé") }}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>

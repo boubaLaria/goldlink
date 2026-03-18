@@ -6,8 +6,10 @@ import { useAuth } from "@/lib/hooks/use-auth"
 import { apiClient } from "@/lib/api-client"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { AdminOverviewTab } from "@/components/admin/admin-overview-tab"
+import { toast } from "sonner"
 import { AdminUsersTab } from "@/components/admin/admin-users-tab"
 import { AdminJewelryTab } from "@/components/admin/admin-jewelry-tab"
+import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton"
 
 type UserRow = {
   id: string; email: string; firstName: string; lastName: string
@@ -46,14 +48,16 @@ export default function AdminPage() {
     try {
       await apiClient.patch(`/api/users/${id}`, { role })
       setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, role: role as UserRow["role"] } : u)))
-    } catch { alert("Erreur lors du changement de rôle.") }
+      toast.success(`Rôle changé en ${role}`)
+    } catch { toast.error("Erreur lors du changement de rôle.") }
   }
 
   async function toggleVerified(id: string, verified: boolean) {
     try {
       await apiClient.patch(`/api/users/${id}`, { verified: !verified })
       setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, verified: !verified } : u)))
-    } catch { alert("Erreur lors de la mise à jour.") }
+      toast.success(verified ? "Vérification révoquée" : "Utilisateur vérifié")
+    } catch { toast.error("Erreur lors de la mise à jour.") }
   }
 
   async function deleteUser(id: string, email: string) {
@@ -61,15 +65,12 @@ export default function AdminPage() {
     try {
       await apiClient.delete(`/api/users/${id}`)
       setUsers((prev) => prev.filter((u) => u.id !== id))
-    } catch { alert("Erreur lors de la suppression.") }
+      toast.success(`Utilisateur ${email} supprimé`)
+    } catch { toast.error("Erreur lors de la suppression.") }
   }
 
   if (authLoading || loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <p className="text-muted-foreground">Chargement...</p>
-      </div>
-    )
+    return <DashboardSkeleton />
   }
 
   return (

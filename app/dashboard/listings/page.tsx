@@ -12,9 +12,11 @@ import { Header } from "@/components/layout/header"
 import { Footer } from "@/components/layout/footer"
 import { JewelryEditSheet } from "@/components/jewelry/jewelry-edit-sheet"
 import { JewelryListingsTable } from "@/components/jewelry/jewelry-listings-table"
+import { JewelryListingsSkeleton } from "@/components/jewelry/jewelry-listings-skeleton"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useJewelry, type Jewelry } from "@/lib/hooks/use-jewelry"
 import { Providers } from "@/app/providers"
+import { toast } from "sonner"
 import Link from "next/link"
 
 export default function ListingsPage() {
@@ -31,12 +33,19 @@ export default function ListingsPage() {
   if (authLoading) return null
   if (!currentUser) { router.push("/login"); return null }
 
-  const handleSave = async (id: string, data: any) => { await update(id, data) }
-  const handleToggleAvailable = async (item: Jewelry) => { await update(item.id, { available: !item.available }) }
+  const handleSave = async (id: string, data: any) => {
+    await update(id, data)
+    toast.success("Annonce mise à jour")
+  }
+  const handleToggleAvailable = async (item: Jewelry) => {
+    await update(item.id, { available: !item.available })
+    toast.success(item.available ? "Bijou marqué indisponible" : "Bijou marqué disponible")
+  }
   const handleDelete = async () => {
     if (!deleteId) return
     await deleteJewelry(deleteId)
     setDeleteId(null)
+    toast.success("Annonce supprimée")
   }
 
   return (
@@ -61,7 +70,7 @@ export default function ListingsPage() {
             </div>
 
             {loading ? (
-              <div className="flex items-center justify-center py-24 text-muted-foreground">Chargement...</div>
+              <JewelryListingsSkeleton />
             ) : jewelry.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-24 text-muted-foreground gap-4">
                 <Gem className="h-12 w-12 opacity-20" />
