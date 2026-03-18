@@ -21,7 +21,7 @@ const HL = {
   RING_PIP:   14,  // ring finger PIP (second joint)
 }
 
-// ── Helper: draw image rotated around its center ────────────────────────────
+// ── Helper: draw image rotated around its center with shadow & blend ─────────
 function drawRotatedImage(
   ctx: CanvasRenderingContext2D,
   img: HTMLImageElement,
@@ -32,6 +32,16 @@ function drawRotatedImage(
   ctx.save()
   ctx.translate(cx, cy)
   ctx.rotate(angle)
+
+  // Ombre douce pour ancrer le bijou visuellement
+  ctx.shadowColor  = 'rgba(0,0,0,0.35)'
+  ctx.shadowBlur   = w * 0.08
+  ctx.shadowOffsetX = w * 0.02
+  ctx.shadowOffsetY = w * 0.03
+
+  // multiply blend : les zones sombres du bijou s'intègrent naturellement
+  ctx.globalCompositeOperation = 'multiply'
+
   ctx.drawImage(img, -w / 2, -h / 2, w, h)
   ctx.restore()
 }

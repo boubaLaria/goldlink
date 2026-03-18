@@ -2,11 +2,10 @@ import { NextRequest } from 'next/server'
 import { authenticate, sendJSON, sendError } from '@/lib/middleware'
 import prisma from '@/lib/db'
 import path from 'path'
-import { v4 as uuidv4 } from 'uuid'
 import {
-  getJobStatus,
-  downloadOutputImage,
-} from '@/lib/services/comfyui.service'
+  getDiffusersJobStatus,
+  saveDiffusersOutput,
+} from '@/lib/services/diffusers.service'
 
 export async function GET(
   request: NextRequest,
@@ -24,7 +23,7 @@ export async function GET(
     if (!session) return sendError('Session not found', 404)
     if (session.userId !== user.id) return sendError('Forbidden', 403)
 
-    // Session déjà terminée — retourner directement
+    // Session déjà terminée
     if (session.status === 'DONE' || session.status === 'FAILED') {
       return sendJSON({
         sessionId: session.id,
@@ -33,22 +32,16 @@ export async function GET(
       })
     }
 
-    // Session sans promptId → encore en file d'attente interne
+    // Pas encore de jobId — toujours en file interne
     if (!session.comfyPromptId) {
       return sendJSON({ sessionId: session.id, status: session.status })
     }
 
-    // Interroger ComfyUI pour l'état du job
-    const jobResult = await getJobStatus(session.comfyPromptId)
+    // Interroger le service Diffusers
+    const job = await getDiffusersJobStatus(session.comfyPromptId)
 
-    if (jobResult.status === 'done' && jobResult.outputFilename) {
-      // Télécharger et sauvegarder l'image générée
-      const outputFilename = `tryon_output_${uuidv4()}.png`
-      const outputDir = path.join('./public/uploads/tryon/outputs')
-      const outputPath = path.join(outputDir, outputFilename)
-      const outputImageUrl = `/uploads/tryon/outputs/${outputFilename}`
-
-      await downloadOutputImage(jobResult.outputFilename, outputPath)
+    if (job.status === 'done' && job.outputImageB64) {
+      const outputImageUrl = await saveDiffusersOutput(job.outputImageB64)
 
       const updated = await prisma.tryOnSession.update({
         where: { id: sessionId },
@@ -62,7 +55,7 @@ export async function GET(
       })
     }
 
-    if (jobResult.status === 'failed') {
+    if (job.status === 'failed') {
       await prisma.tryOnSession.update({
         where: { id: sessionId },
         data: { status: 'FAILED' },
@@ -70,10 +63,9 @@ export async function GET(
       return sendJSON({ sessionId: session.id, status: 'FAILED' })
     }
 
-    // Toujours en cours
     return sendJSON({
       sessionId: session.id,
-      status: jobResult.status === 'processing' ? 'PROCESSING' : 'PENDING',
+      status: job.status === 'processing' ? 'PROCESSING' : 'PENDING',
     })
   } catch (error) {
     console.error('TryOn polling error:', error)
@@ -100,7 +92,6 @@ export async function DELETE(
       return sendError('Forbidden', 403)
     }
 
-    // Supprimer les fichiers images du disque
     const { unlink } = await import('fs/promises')
     const filesToDelete = [session.inputImageUrl, session.outputImageUrl].filter(Boolean)
     await Promise.allSettled(

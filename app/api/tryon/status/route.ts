@@ -1,7 +1,7 @@
 import { sendJSON } from '@/lib/middleware'
-import { isComfyUIHealthy } from '@/lib/services/comfyui.service'
+import { isDiffusersHealthy } from '@/lib/services/diffusers.service'
 
-const OLLAMA_URL = process.env.OLLAMA_URL || 'http://ollama:11434'
+const OLLAMA_URL = process.env.OLLAMA_URL || 'http://host.docker.internal:11434'
 
 async function isOllamaHealthy(): Promise<boolean> {
   try {
@@ -15,17 +15,15 @@ async function isOllamaHealthy(): Promise<boolean> {
 }
 
 export async function GET() {
-  const [ollama, comfyui] = await Promise.all([
+  const [ollama, diffusers] = await Promise.all([
     isOllamaHealthy(),
-    isComfyUIHealthy(),
+    isDiffusersHealthy(),
   ])
 
   return sendJSON({
     ollama,
-    comfyui,
-    // fullFeatures = rendu IA disponible (les deux services nécessaires)
-    fullFeatures: ollama && comfyui,
-    // previewOnly = overlay 2D uniquement (toujours disponible côté client)
-    previewOnly: !ollama || !comfyui,
+    diffusers,
+    fullFeatures: diffusers,         // rendu IA dispo si Diffusers tourne
+    previewOnly: !diffusers,         // overlay 2D uniquement sinon
   })
 }

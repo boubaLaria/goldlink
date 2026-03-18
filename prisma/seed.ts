@@ -1,7 +1,5 @@
 import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
-import * as https from 'https'
-import * as http from 'http'
 import * as fs from 'fs'
 import * as path from 'path'
 
@@ -30,127 +28,60 @@ const PHOTOS = {
   set1:       IMG('1601121141461-9d6647bef0a1'),
 }
 
-// ── Try-on images — bijoux sur fond blanc/clair, haute qualité ───────────────
-// Téléchargés localement pour que ComfyUI puisse les lire depuis le disque
+// ── Try-on images — stockées dans prisma/seeds/images/ (commitées dans le repo)
 const TRYON_UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads', 'jewelry')
+const TRYON_SOURCE_DIR = path.join(process.cwd(), 'prisma', 'seeds', 'images')
 
-const TRYON_IMAGES = [
-  {
-    filename: 'tryon-earrings-gold.jpg',
-    url: 'https://images.unsplash.com/photo-1589118949245-7d38baf380d6?w=600&h=600&fit=crop&auto=format&q=90',
-    description: "Boucles d'oreilles dorées sur fond clair",
-  },
-  {
-    filename: 'tryon-earrings-creoles.jpg',
-    url: 'https://images.unsplash.com/photo-1535632066927-ab7c9ab60cc9?w=600&h=600&fit=crop&auto=format&q=90',
-    description: 'Créoles géométriques sur fond blanc',
-  },
-  {
-    filename: 'tryon-necklace-berber.jpg',
-    url: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=600&h=600&fit=crop&auto=format&q=90',
-    description: 'Collier berbère sur fond neutre',
-  },
-  {
-    filename: 'tryon-necklace-chain.jpg',
-    url: 'https://images.unsplash.com/photo-1608042314453-ae338d9c6762?w=600&h=600&fit=crop&auto=format&q=90',
-    description: 'Chaîne en or sur fond blanc',
-  },
-  {
-    filename: 'tryon-necklace-riviere.jpg',
-    url: 'https://images.unsplash.com/photo-1617038260897-41a1f14a8ca0?w=600&h=600&fit=crop&auto=format&q=90',
-    description: 'Collier rivière diamants sur fond sombre',
-  },
-  {
-    filename: 'tryon-bracelet-jonc.jpg',
-    url: 'https://images.unsplash.com/photo-1611591437281-460bfbe1220a?w=600&h=600&fit=crop&auto=format&q=90',
-    description: 'Bracelet jonc sur fond blanc',
-  },
-  {
-    filename: 'tryon-bracelet-stars.jpg',
-    url: 'https://images.unsplash.com/photo-1576022162802-2ef1f5b3bdb2?w=600&h=600&fit=crop&auto=format&q=90',
-    description: 'Bracelet chaîne sur fond clair',
-  },
-  {
-    filename: 'tryon-bracelet-tennis.jpg',
-    url: 'https://images.unsplash.com/photo-1574169208507-84aab36a6f37?w=600&h=600&fit=crop&auto=format&q=90',
-    description: 'Bracelet tennis diamants sur fond blanc',
-  },
-  {
-    filename: 'tryon-ring-chevaliere.jpg',
-    url: 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=600&h=600&fit=crop&auto=format&q=90',
-    description: 'Chevalière en or sur fond blanc',
-  },
-  {
-    filename: 'tryon-ring-sapphire.jpg',
-    url: 'https://images.unsplash.com/photo-1614786269829-d24616faf56d?w=600&h=600&fit=crop&auto=format&q=90',
-    description: 'Bague saphir sur fond blanc',
-  },
+// Chaque bijou a deux fichiers :
+//   .jpg → image catalogue (avec fond, Unsplash)
+//   .png → image essayage (fond retiré par rembg, transparent)
+const TRYON_BASES = [
+  'tryon-earrings-gold',
+  'tryon-earrings-creoles',
+  'tryon-necklace-berber',
+  'tryon-necklace-chain',
+  'tryon-necklace-riviere',
+  'tryon-bracelet-jonc',
+  'tryon-bracelet-stars',
+  'tryon-bracelet-tennis',
+  'tryon-ring-chevaliere',
+  'tryon-ring-sapphire',
 ]
 
-// ── Téléchargement d'image avec suivi de redirections ────────────────────────
-function downloadImage(url: string, dest: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const attempt = (currentUrl: string, redirects = 0) => {
-      if (redirects > 5) { reject(new Error('Too many redirects')); return }
+// ── Copie les images depuis prisma/seeds/images/ vers public/uploads/jewelry/ ─
+function copyTryOnImages(): { jpgUrl: Map<string, string>; pngUrl: Map<string, string> } {
+  const jpgUrl = new Map<string, string>()
+  const pngUrl = new Map<string, string>()
 
-      const protocol = currentUrl.startsWith('https') ? https : http
-      const req = protocol.get(currentUrl, (res) => {
-        // Suivre les redirections 301/302
-        if ((res.statusCode === 301 || res.statusCode === 302) && res.headers.location) {
-          attempt(res.headers.location, redirects + 1)
-          return
-        }
-        if (res.statusCode !== 200) {
-          reject(new Error(`HTTP ${res.statusCode} for ${currentUrl}`))
-          return
-        }
-        const file = fs.createWriteStream(dest)
-        res.pipe(file)
-        file.on('finish', () => file.close(() => resolve()))
-        file.on('error', (err) => { fs.unlink(dest, () => {}); reject(err) })
-      })
-      req.on('error', reject)
-      req.setTimeout(15000, () => { req.destroy(); reject(new Error('Timeout')) })
-    }
-    attempt(url)
-  })
-}
-
-// ── Télécharger toutes les images try-on ─────────────────────────────────────
-async function downloadTryOnImages(): Promise<Map<string, string>> {
-  const urlMap = new Map<string, string>()
-
-  // Créer le dossier si besoin
   if (!fs.existsSync(TRYON_UPLOAD_DIR)) {
     fs.mkdirSync(TRYON_UPLOAD_DIR, { recursive: true })
   }
 
-  console.log(`\n📸 Téléchargement des images try-on → ${TRYON_UPLOAD_DIR}`)
+  console.log(`\n📸 Copie des images try-on → ${TRYON_UPLOAD_DIR}`)
 
-  for (const img of TRYON_IMAGES) {
-    const dest = path.join(TRYON_UPLOAD_DIR, img.filename)
-    const publicUrl = `/uploads/jewelry/${img.filename}`
+  for (const base of TRYON_BASES) {
+    for (const ext of ['jpg', 'png']) {
+      const filename = `${base}.${ext}`
+      const src  = path.join(TRYON_SOURCE_DIR, filename)
+      const dest = path.join(TRYON_UPLOAD_DIR, filename)
 
-    // Ne pas re-télécharger si le fichier existe déjà
-    if (fs.existsSync(dest) && fs.statSync(dest).size > 5000) {
-      console.log(`  ✓ ${img.filename} (déjà présent)`)
-      urlMap.set(img.filename, publicUrl)
-      continue
-    }
+      if (!fs.existsSync(src)) {
+        console.warn(`  ⚠ ${filename} — introuvable dans prisma/seeds/images/`)
+        continue
+      }
 
-    try {
-      await downloadImage(img.url, dest)
+      fs.copyFileSync(src, dest)
       const size = Math.round(fs.statSync(dest).size / 1024)
-      console.log(`  ✓ ${img.filename} — ${size} KB — ${img.description}`)
-      urlMap.set(img.filename, publicUrl)
-    } catch (err: any) {
-      console.warn(`  ⚠ ${img.filename} — échec (${err.message}) — fallback sur URL externe`)
-      // Fallback : stocker l'URL Unsplash directement
-      urlMap.set(img.filename, img.url)
+      const label = ext === 'jpg' ? '🖼  catalogue' : '🪞 essayage '
+      console.log(`  ✓ ${filename} ${label} — ${size} KB`)
+
+      const url = `/uploads/jewelry/${filename}`
+      if (ext === 'jpg') jpgUrl.set(base, url)
+      else               pngUrl.set(base, url)
     }
   }
 
-  return urlMap
+  return { jpgUrl, pngUrl }
 }
 
 // ── Helper dates ─────────────────────────────────────────────────────────────
@@ -167,9 +98,12 @@ async function main() {
   console.log('🌱 Seeding database...')
 
   // ── Télécharger les images try-on ─────────────────────────────────────────
-  const tryOnUrls = await downloadTryOnImages()
+  const { jpgUrl, pngUrl } = copyTryOnImages()
 
-  const T = (filename: string) => tryOnUrls.get(filename) ?? `/uploads/jewelry/${filename}`
+  // J = image catalogue (JPEG avec fond) — utilisée dans images[]
+  // P = image essayage (PNG transparent rembg) — utilisée dans tryOnImageUrl
+  const J = (base: string) => jpgUrl.get(base) ?? `/uploads/jewelry/${base}.jpg`
+  const P = (base: string) => pngUrl.get(base) ?? `/uploads/jewelry/${base}.png`
 
   // ── Nettoyage ──────────────────────────────────────────────────────────────
   await prisma.tryOnSession.deleteMany()
@@ -251,7 +185,7 @@ async function main() {
       views: 342, rating: 4.9, reviewCount: 5,
       tryOnAvailable: true,
       tryOnType: 'NECK',
-      tryOnImageUrl: T('tryon-necklace-berber.jpg'),
+      tryOnImageUrl: P('tryon-necklace-berber'),
     }}),
 
     // j2 — Parure Mariage (pas de try-on, type MULTI trop complexe pour démo)
@@ -278,7 +212,7 @@ async function main() {
       views: 178, rating: 4.8, reviewCount: 4,
       tryOnAvailable: true,
       tryOnType: 'FACE',
-      tryOnImageUrl: T('tryon-earrings-gold.jpg'),
+      tryOnImageUrl: P('tryon-earrings-gold'),
     }}),
 
     // j4 — Pendentif (pas de try-on)
@@ -305,7 +239,7 @@ async function main() {
       views: 156, rating: 4.7, reviewCount: 2,
       tryOnAvailable: true,
       tryOnType: 'NECK',
-      tryOnImageUrl: T('tryon-necklace-chain.jpg'),
+      tryOnImageUrl: P('tryon-necklace-chain'),
     }}),
   ])
 
@@ -324,7 +258,7 @@ async function main() {
       views: 267, rating: 4.9, reviewCount: 6,
       tryOnAvailable: true,
       tryOnType: 'FINGER',
-      tryOnImageUrl: T('tryon-ring-chevaliere.jpg'),
+      tryOnImageUrl: P('tryon-ring-chevaliere'),
     }}),
 
     // j7 — Collier Maille Royale ✨ TRY-ON NECK
@@ -339,7 +273,7 @@ async function main() {
       views: 198, rating: 4.8, reviewCount: 4,
       tryOnAvailable: true,
       tryOnType: 'NECK',
-      tryOnImageUrl: T('tryon-necklace-berber.jpg'),
+      tryOnImageUrl: P('tryon-necklace-berber'),
     }}),
 
     // j8 — Bracelet Jonc ✨ TRY-ON WRIST
@@ -354,7 +288,7 @@ async function main() {
       views: 145, rating: 4.9, reviewCount: 3,
       tryOnAvailable: true,
       tryOnType: 'WRIST',
-      tryOnImageUrl: T('tryon-bracelet-jonc.jpg'),
+      tryOnImageUrl: P('tryon-bracelet-jonc'),
     }}),
 
     // j9 — Bague Solitaire (pas de try-on — vendu uniquement, pas de prêt essayage)
@@ -409,7 +343,7 @@ async function main() {
       views: 287, rating: 4.8, reviewCount: 7,
       tryOnAvailable: true,
       tryOnType: 'FACE',
-      tryOnImageUrl: T('tryon-earrings-creoles.jpg'),
+      tryOnImageUrl: P('tryon-earrings-creoles'),
     }}),
 
     // j13 — Bracelet Chaîne Étoiles ✨ TRY-ON WRIST
@@ -424,7 +358,7 @@ async function main() {
       views: 334, rating: 4.6, reviewCount: 11,
       tryOnAvailable: true,
       tryOnType: 'WRIST',
-      tryOnImageUrl: T('tryon-bracelet-stars.jpg'),
+      tryOnImageUrl: P('tryon-bracelet-stars'),
     }}),
 
     // j14 — Pendentif Géométrique (pas de try-on)
@@ -455,7 +389,7 @@ async function main() {
       views: 512, rating: 5.0, reviewCount: 4,
       tryOnAvailable: true,
       tryOnType: 'NECK',
-      tryOnImageUrl: T('tryon-necklace-riviere.jpg'),
+      tryOnImageUrl: P('tryon-necklace-riviere'),
     }}),
 
     // j16 — Bague Saphir Royal ✨ TRY-ON FINGER
@@ -470,7 +404,7 @@ async function main() {
       views: 389, rating: 5.0, reviewCount: 6,
       tryOnAvailable: true,
       tryOnType: 'FINGER',
-      tryOnImageUrl: T('tryon-ring-sapphire.jpg'),
+      tryOnImageUrl: P('tryon-ring-sapphire'),
     }}),
 
     // j17 — Bracelet Tennis ✨ TRY-ON WRIST
@@ -485,7 +419,7 @@ async function main() {
       views: 445, rating: 5.0, reviewCount: 7,
       tryOnAvailable: true,
       tryOnType: 'WRIST',
-      tryOnImageUrl: T('tryon-bracelet-tennis.jpg'),
+      tryOnImageUrl: P('tryon-bracelet-tennis'),
     }}),
 
     // j18 — Pendentif Croix (pas de try-on)

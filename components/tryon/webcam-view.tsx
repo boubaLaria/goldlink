@@ -52,14 +52,14 @@ export function WebcamView({ tryOnType, jewelryImageUrl, onCapture, disabled }: 
 
         if (needsFace(tryOnType)) {
           faceLandmarkerRef.current = await FaceLandmarker.createFromOptions(vision, {
-            baseOptions: { modelAssetPath: FACE_MODEL, delegate: "GPU" },
+            baseOptions: { modelAssetPath: FACE_MODEL, delegate: "CPU" },
             runningMode: "VIDEO",
             numFaces: 1,
           })
         }
         if (needsHand(tryOnType)) {
           handLandmarkerRef.current = await HandLandmarker.createFromOptions(vision, {
-            baseOptions: { modelAssetPath: HAND_MODEL, delegate: "GPU" },
+            baseOptions: { modelAssetPath: HAND_MODEL, delegate: "CPU" },
             runningMode: "VIDEO",
             numHands: 2,
           })
@@ -109,8 +109,9 @@ export function WebcamView({ tryOnType, jewelryImageUrl, onCapture, disabled }: 
   useEffect(() => () => stopCamera(), [stopCamera])
 
   // ── Detection + drawing loop ───────────────────────────────────────────────
+  // Démarre dès que la caméra est prête — l'overlay s'ajoute quand MediaPipe est chargé
   useEffect(() => {
-    if (cameraState !== "ready" || mpState !== "ready") return
+    if (cameraState !== "ready") return
     const video  = videoRef.current
     const canvas = canvasRef.current
     if (!video || !canvas) return
@@ -127,35 +128,36 @@ export function WebcamView({ tryOnType, jewelryImageUrl, onCapture, disabled }: 
       canvas.width  = W
       canvas.height = H
 
-      // Draw flipped video (selfie view)
+      // Toujours dessiner la vidéo (selfie view miroir)
       ctx.save()
       ctx.translate(W, 0)
       ctx.scale(-1, 1)
       ctx.drawImage(video, 0, 0, W, H)
       ctx.restore()
 
-      // Run detectors (throttle to ≤30 fps)
-      if (now - lastTs > 33) {
-        if (faceLandmarkerRef.current) {
-          lastFaceResult.current = faceLandmarkerRef.current.detectForVideo(video, now)
+      // Overlay MediaPipe seulement si prêt
+      if (mpState === "ready") {
+        if (now - lastTs > 33) {
+          if (faceLandmarkerRef.current) {
+            lastFaceResult.current = faceLandmarkerRef.current.detectForVideo(video, now)
+          }
+          if (handLandmarkerRef.current) {
+            lastHandResult.current = handLandmarkerRef.current.detectForVideo(video, now)
+          }
+          lastTs = now
         }
-        if (handLandmarkerRef.current) {
-          lastHandResult.current = handLandmarkerRef.current.detectForVideo(video, now)
-        }
-        lastTs = now
-      }
 
-      // Draw jewelry overlay
-      if (jewelryImgRef.current) {
-        drawJewelryOverlay(
-          ctx,
-          jewelryImgRef.current,
-          W, H,
-          tryOnType,
-          lastFaceResult.current?.faceLandmarks ?? [],
-          lastHandResult.current?.landmarks      ?? [],
-          true, // mirror = selfie view
-        )
+        if (jewelryImgRef.current) {
+          drawJewelryOverlay(
+            ctx,
+            jewelryImgRef.current,
+            W, H,
+            tryOnType,
+            lastFaceResult.current?.faceLandmarks ?? [],
+            lastHandResult.current?.landmarks      ?? [],
+            true,
+          )
+        }
       }
 
       rafRef.current = requestAnimationFrame(tick)
