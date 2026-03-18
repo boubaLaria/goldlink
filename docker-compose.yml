@@ -70,9 +70,89 @@ services:
     networks:
       - goldlink-network
 
+  # ─── Ollama (Vision LLM) ─────────────────────────────
+  ollama:
+    image: ollama/ollama:latest
+    container_name: goldlink-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - goldlink-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:11434/api/tags || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ─── Ollama Init (pull llava-llama3 once) ────────────
+  ollama-init:
+    image: ollama/ollama:latest
+    container_name: goldlink-ollama-init
+    restart: "no"
+    depends_on:
+      ollama:
+        condition: service_healthy
+    entrypoint: ["ollama", "pull", "llava-llama3:8b"]
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    networks:
+      - goldlink-network
+
+  # ─── ComfyUI (Image Generation) ──────────────────────
+  comfyui:
+    image: ghcr.io/ai-dock/comfyui:latest-cuda
+    container_name: goldlink-comfyui
+    restart: unless-stopped
+    ports:
+      - "8188:8188"
+    volumes:
+      - comfyui_models:/opt/ComfyUI/models
+      - comfyui_output:/opt/ComfyUI/output
+      - ./services/comfyui/workflows:/opt/ComfyUI/workflows
+    environment:
+      - CLI_ARGS=--listen 0.0.0.0 --port 8188
+    networks:
+      - goldlink-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8188/system_stats || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
+
+  # ─── Image Validator (Python microservice) ───────────
+  image-validator:
+    build:
+      context: ./services/image-validator
+      dockerfile: Dockerfile
+    container_name: goldlink-image-validator
+    restart: unless-stopped
+    ports:
+      - "8090:8090"
+    environment:
+      - OLLAMA_URL=http://ollama:11434
+    depends_on:
+      ollama:
+        condition: service_healthy
+    networks:
+      - goldlink-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8090/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
 volumes:
   postgres_data:
   uploads:
+  ollama_data:
+  comfyui_models:
+  comfyui_output:
 
 networks:
   goldlink-network:

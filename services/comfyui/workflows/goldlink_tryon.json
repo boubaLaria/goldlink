@@ -1,0 +1,62 @@
+{
+  "_comment": "GoldLink Try-On Workflow — SDXL + IP-Adapter + ControlNet Inpainting",
+  "_version": "1.0",
+  "_description": "Ce workflow est soumis dynamiquement via l'API ComfyUI avec les images injectées par le serveur Next.js",
+  "4": {
+    "inputs": { "ckpt_name": "juggernautXL_version9Rundiffusion.safetensors" },
+    "class_type": "CheckpointLoaderSimple"
+  },
+  "6": {
+    "inputs": {
+      "text": "photorealistic jewelry on person, high quality, natural lighting, detailed skin texture, professional photo",
+      "clip": ["4", 1]
+    },
+    "class_type": "CLIPTextEncode"
+  },
+  "7": {
+    "inputs": {
+      "text": "blurry, low quality, cartoon, illustration, deformed, ugly, artifacts, watermark",
+      "clip": ["4", 1]
+    },
+    "class_type": "CLIPTextEncode"
+  },
+  "10": {
+    "inputs": { "image": "__USER_IMAGE_PATH__", "upload": "image" },
+    "class_type": "LoadImage"
+  },
+  "11": {
+    "inputs": { "image": "__JEWELRY_PNG_PATH__", "upload": "image" },
+    "class_type": "LoadImage"
+  },
+  "20": {
+    "inputs": {
+      "ipadapter_file": "ip-adapter-plus_sdxl_vit-h.safetensors"
+    },
+    "class_type": "IPAdapterModelLoader"
+  },
+  "21": {
+    "inputs": {
+      "model": ["4", 0],
+      "ipadapter": ["20", 0],
+      "image": ["11", 0],
+      "weight": 0.85,
+      "start_at": 0.0,
+      "end_at": 1.0
+    },
+    "class_type": "IPAdapterApply"
+  },
+  "30": {
+    "inputs": {
+      "samples": ["21", 0],
+      "vae": ["4", 2]
+    },
+    "class_type": "VAEDecode"
+  },
+  "40": {
+    "inputs": {
+      "images": ["30", 0],
+      "filename_prefix": "goldlink_tryon"
+    },
+    "class_type": "SaveImage"
+  }
+}
