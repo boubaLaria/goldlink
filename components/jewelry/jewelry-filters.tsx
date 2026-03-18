@@ -1,13 +1,14 @@
 "use client"
 
 import { useState } from "react"
-import { Search, SlidersHorizontal } from "lucide-react"
+import { Search, SlidersHorizontal, Sparkles } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { Slider } from "@/components/ui/slider"
+import { Switch } from "@/components/ui/switch"
 import { formatPrice } from "@/lib/utils/format"
 
 interface JewelryFiltersProps {
@@ -21,6 +22,7 @@ export function JewelryFilters({ onSearch, onFilterChange }: JewelryFiltersProps
   const [purity, setPurity] = useState<string>("")
   const [priceRange, setPriceRange] = useState([0, 100000])
   const [location, setLocation] = useState<string>("")
+  const [tryOnOnly, setTryOnOnly] = useState(false)
 
   const handleSearch = () => {
     onSearch(searchQuery)
@@ -33,6 +35,7 @@ export function JewelryFilters({ onSearch, onFilterChange }: JewelryFiltersProps
       minPrice: priceRange[0],
       maxPrice: priceRange[1],
       location: location || undefined,
+      tryOnAvailable: tryOnOnly ? true : undefined,
     })
   }
 
@@ -41,6 +44,7 @@ export function JewelryFilters({ onSearch, onFilterChange }: JewelryFiltersProps
     setPurity("")
     setPriceRange([0, 100000])
     setLocation("")
+    setTryOnOnly(false)
     onFilterChange({})
   }
 
@@ -126,6 +130,20 @@ export function JewelryFilters({ onSearch, onFilterChange }: JewelryFiltersProps
                   <span>{formatPrice(priceRange[0])}</span>
                   <span>{formatPrice(priceRange[1])}</span>
                 </div>
+              </div>
+
+              <div className="flex items-center justify-between rounded-lg border p-3">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-violet-600" />
+                  <Label htmlFor="tryon-filter" className="cursor-pointer font-medium">
+                    Essayage virtuel uniquement
+                  </Label>
+                </div>
+                <Switch
+                  id="tryon-filter"
+                  checked={tryOnOnly}
+                  onCheckedChange={setTryOnOnly}
+                />
               </div>
 
               <div className="flex gap-2 pt-4">

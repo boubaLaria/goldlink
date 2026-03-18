@@ -79,6 +79,7 @@ export const mockJewelry: Jewelry[] = [
     views: 234,
     rating: 4.9,
     reviewCount: 8,
+    tryOnAvailable: false,
   },
   {
     id: "2",
@@ -100,6 +101,7 @@ export const mockJewelry: Jewelry[] = [
     views: 189,
     rating: 4.8,
     reviewCount: 5,
+    tryOnAvailable: false,
   },
   {
     id: "3",
@@ -120,6 +122,7 @@ export const mockJewelry: Jewelry[] = [
     views: 145,
     rating: 4.7,
     reviewCount: 3,
+    tryOnAvailable: false,
   },
   {
     id: "4",
@@ -140,6 +143,7 @@ export const mockJewelry: Jewelry[] = [
     views: 312,
     rating: 5.0,
     reviewCount: 2,
+    tryOnAvailable: false,
   },
   {
     id: "5",
@@ -161,6 +165,7 @@ export const mockJewelry: Jewelry[] = [
     views: 98,
     rating: 4.6,
     reviewCount: 4,
+    tryOnAvailable: false,
   },
   {
     id: "6",
@@ -180,6 +185,7 @@ export const mockJewelry: Jewelry[] = [
     views: 167,
     rating: 4.8,
     reviewCount: 6,
+    tryOnAvailable: false,
   },
 ]
 

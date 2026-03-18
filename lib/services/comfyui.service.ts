@@ -112,7 +112,7 @@ export async function uploadImageToComfyUI(
   filename: string
 ): Promise<string> {
   const formData = new FormData()
-  const blob = new Blob([imageBuffer], { type: 'image/png' })
+  const blob = new Blob([new Uint8Array(imageBuffer)], { type: 'image/png' })
   formData.append('image', blob, filename)
   formData.append('type', 'input')
   formData.append('overwrite', 'true')

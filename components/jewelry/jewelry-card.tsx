@@ -2,7 +2,7 @@
 
 import Image from "next/image"
 import Link from "next/link"
-import { Heart, MapPin, Star } from "lucide-react"
+import { Heart, MapPin, Star, Sparkles } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -41,7 +41,7 @@ export function JewelryCard({ jewelry, onFavorite, isFavorite = false }: Jewelry
               <Heart className={`h-4 w-4 ${isFavorite ? "fill-red-500 text-red-500" : ""}`} />
             </Button>
           )}
-          <div className="absolute top-2 left-2 flex gap-2">
+          <div className="absolute top-2 left-2 flex flex-col gap-1">
             {jewelry.listingType.includes("rent") && (
               <Badge variant="secondary" className="bg-primary text-primary-foreground">
                 Location
@@ -50,6 +50,12 @@ export function JewelryCard({ jewelry, onFavorite, isFavorite = false }: Jewelry
             {jewelry.listingType.includes("sale") && (
               <Badge variant="secondary" className="bg-secondary text-secondary-foreground">
                 Vente
+              </Badge>
+            )}
+            {(jewelry as any).tryOnAvailable && (
+              <Badge className="bg-violet-600 text-white border-0 flex items-center gap-1 w-fit">
+                <Sparkles className="h-3 w-3" />
+                Essayage virtuel
               </Badge>
             )}
           </div>
