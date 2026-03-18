@@ -42,15 +42,45 @@ export default function NewJewelryPage() {
   })
 
   const [images, setImages] = useState<string[]>([])
+  const [uploading, setUploading] = useState(false)
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
-    if (files) {
-      const newImages = Array.from(files).map(
-        (_, index) => `/placeholder.svg?height=400&width=400&text=Image${images.length + index + 1}`,
-      )
-      setImages([...images, ...newImages])
+    if (!files || files.length === 0) return
+
+    setUploading(true)
+    const uploaded: string[] = []
+
+    for (const file of Array.from(files)) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast({ title: "Fichier trop volumineux", description: `${file.name} dépasse 5MB.`, variant: "destructive" })
+        continue
+      }
+      try {
+        const formData = new FormData()
+        formData.append("file", file)
+        formData.append("category", "jewelry")
+        const token = localStorage.getItem("accessToken")
+        const res = await fetch("/api/uploads", {
+          method: "POST",
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          body: formData,
+        })
+        if (res.ok) {
+          const data = await res.json()
+          uploaded.push(data.url)
+        } else {
+          toast({ title: "Erreur upload", description: `Impossible d'uploader ${file.name}.`, variant: "destructive" })
+        }
+      } catch {
+        toast({ title: "Erreur upload", description: `Erreur réseau pour ${file.name}.`, variant: "destructive" })
+      }
     }
+
+    if (uploaded.length > 0) setImages((prev) => [...prev, ...uploaded])
+    setUploading(false)
+    // reset input
+    e.target.value = ""
   }
 
   const removeImage = (index: number) => {
@@ -188,12 +218,12 @@ export default function NewJewelryPage() {
                           </Button>
                         </div>
                       ))}
-                      <label className="aspect-square rounded-lg border-2 border-dashed flex items-center justify-center cursor-pointer hover:border-primary transition-colors">
+                      <label className={`aspect-square rounded-lg border-2 border-dashed flex items-center justify-center transition-colors ${uploading ? "cursor-wait opacity-60" : "cursor-pointer hover:border-primary"}`}>
                         <div className="text-center">
                           <Upload className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
-                          <span className="text-xs text-muted-foreground">Ajouter</span>
+                          <span className="text-xs text-muted-foreground">{uploading ? "Upload..." : "Ajouter"}</span>
                         </div>
-                        <input type="file" multiple accept="image/*" className="hidden" onChange={handleImageUpload} />
+                        <input type="file" multiple accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleImageUpload} disabled={uploading} />
                       </label>
                     </div>
                   </div>
@@ -394,8 +424,8 @@ export default function NewJewelryPage() {
                     >
                       Annuler
                     </Button>
-                    <Button type="submit" className="flex-1" disabled={loading}>
-                      {loading ? "Publication..." : "Publier l'annonce"}
+                    <Button type="submit" className="flex-1 gold-button text-white border-0" disabled={loading || uploading}>
+                      {loading ? "Publication..." : uploading ? "Upload en cours..." : "Publier l'annonce"}
                     </Button>
                   </div>
                 </form>

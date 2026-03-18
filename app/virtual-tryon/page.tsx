@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Header } from "@/components/layout/header"
 import { Footer } from "@/components/layout/footer"
 import { Providers } from "../providers"
-import { useStore } from "@/lib/store"
+import { useJewelry } from "@/lib/hooks/use-jewelry"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 
@@ -21,9 +21,13 @@ export default function VirtualTryOnPage() {
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const { jewelry } = useStore()
+  const { jewelry, list } = useJewelry()
 
   const availableJewelry = jewelry.filter((j) => j.available)
+
+  useEffect(() => {
+    list()
+  }, [list])
 
   useEffect(() => {
     return () => {
@@ -198,7 +202,7 @@ export default function VirtualTryOnPage() {
                               <div className="relative">
                                 <img
                                   src={selectedJewelryItem.images[0] || "/placeholder.svg"}
-                                  alt={selectedJewelryItem.name}
+                                  alt={selectedJewelryItem.title}
                                   className="w-32 h-32 object-contain opacity-80 drop-shadow-2xl"
                                   style={{
                                     filter: "drop-shadow(0 0 10px rgba(255, 215, 0, 0.5))",
@@ -271,7 +275,7 @@ export default function VirtualTryOnPage() {
                         <TabsContent value="necklace" className="space-y-4 max-h-[600px] overflow-y-auto mt-4">
                           <div className="grid grid-cols-2 gap-4">
                             {availableJewelry
-                              .filter((j) => j.category === "necklace")
+                              .filter((j) => j.type === "NECKLACE")
                               .slice(0, 8)
                               .map((item) => (
                                 <button
@@ -283,11 +287,11 @@ export default function VirtualTryOnPage() {
                                 >
                                   <img
                                     src={item.images[0] || "/placeholder.svg"}
-                                    alt={item.name}
+                                    alt={item.title}
                                     className="w-full aspect-square object-cover"
                                   />
                                   <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2">
-                                    <p className="text-xs text-white font-medium truncate">{item.name}</p>
+                                    <p className="text-xs text-white font-medium truncate">{item.title}</p>
                                   </div>
                                 </button>
                               ))}
@@ -296,7 +300,7 @@ export default function VirtualTryOnPage() {
                         <TabsContent value="bracelet" className="space-y-4 max-h-[600px] overflow-y-auto mt-4">
                           <div className="grid grid-cols-2 gap-4">
                             {availableJewelry
-                              .filter((j) => j.category === "bracelet")
+                              .filter((j) => j.type === "BRACELET")
                               .slice(0, 8)
                               .map((item) => (
                                 <button
@@ -308,11 +312,11 @@ export default function VirtualTryOnPage() {
                                 >
                                   <img
                                     src={item.images[0] || "/placeholder.svg"}
-                                    alt={item.name}
+                                    alt={item.title}
                                     className="w-full aspect-square object-cover"
                                   />
                                   <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2">
-                                    <p className="text-xs text-white font-medium truncate">{item.name}</p>
+                                    <p className="text-xs text-white font-medium truncate">{item.title}</p>
                                   </div>
                                 </button>
                               ))}
@@ -321,7 +325,7 @@ export default function VirtualTryOnPage() {
                         <TabsContent value="ring" className="space-y-4 max-h-[600px] overflow-y-auto mt-4">
                           <div className="grid grid-cols-2 gap-4">
                             {availableJewelry
-                              .filter((j) => j.category === "ring")
+                              .filter((j) => j.type === "RING")
                               .slice(0, 8)
                               .map((item) => (
                                 <button
@@ -333,11 +337,11 @@ export default function VirtualTryOnPage() {
                                 >
                                   <img
                                     src={item.images[0] || "/placeholder.svg"}
-                                    alt={item.name}
+                                    alt={item.title}
                                     className="w-full aspect-square object-cover"
                                   />
                                   <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2">
-                                    <p className="text-xs text-white font-medium truncate">{item.name}</p>
+                                    <p className="text-xs text-white font-medium truncate">{item.title}</p>
                                   </div>
                                 </button>
                               ))}
