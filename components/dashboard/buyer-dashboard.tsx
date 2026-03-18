@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Calendar, TrendingUp, DollarSign, ShoppingBag, BarChart2 } from "lucide-react"
+import { Calendar, TrendingUp, DollarSign, ShoppingBag, BarChart2, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -74,6 +74,24 @@ export function BuyerDashboard({ user, bookings }: BuyerDashboardProps) {
           </CardContent>
         </Card>
       </div>
+
+      <Card className="mb-8 border-violet-200">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-violet-600" />
+            Essayage virtuel
+          </CardTitle>
+          <CardDescription>Essayez des bijoux en réalité augmentée</CardDescription>
+        </CardHeader>
+        <CardContent className="flex gap-3">
+          <Button asChild className="bg-violet-600 hover:bg-violet-700 text-white border-0">
+            <Link href="/catalog?tryOnAvailable=true">Bijoux avec try-on</Link>
+          </Button>
+          <Button asChild variant="outline" className="bg-transparent">
+            <Link href="/dashboard/tryon-history">Mon historique</Link>
+          </Button>
+        </CardContent>
+      </Card>
 
       {bookings.length > 0 && (
         <Card>

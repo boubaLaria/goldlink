@@ -79,7 +79,8 @@
     "uuid": "^13.0.0",
     "vaul": "^0.9.9",
     "zod": "3.25.76",
-    "zustand": "latest"
+    "zustand": "latest",
+    "@mediapipe/tasks-vision": "^0.10.14"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.9",
