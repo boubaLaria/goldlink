@@ -4,7 +4,7 @@ import type React from "react"
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Upload, X } from "lucide-react"
+import { ArrowLeft, Upload, X, Box, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -43,6 +43,8 @@ export default function NewJewelryPage() {
 
   const [images, setImages] = useState<string[]>([])
   const [uploading, setUploading] = useState(false)
+  const [model3dUrl, setModel3dUrl] = useState<string | null>(null)
+  const [uploadingModel, setUploadingModel] = useState(false)
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
@@ -87,6 +89,37 @@ export default function NewJewelryPage() {
     setImages(images.filter((_, i) => i !== index))
   }
 
+  const handleModelUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 50 * 1024 * 1024) {
+      toast({ title: "Fichier trop volumineux", description: "Le modèle 3D dépasse 50MB.", variant: "destructive" })
+      return
+    }
+    setUploadingModel(true)
+    try {
+      const fd = new FormData()
+      fd.append("file", file)
+      const token = localStorage.getItem("accessToken")
+      const res = await fetch("/api/uploads", {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: fd,
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setModel3dUrl(data.url)
+        toast({ title: "Modèle 3D uploadé", description: file.name })
+      } else {
+        toast({ title: "Erreur upload", description: "Impossible d'uploader le modèle 3D.", variant: "destructive" })
+      }
+    } catch {
+      toast({ title: "Erreur réseau", description: "Erreur lors de l'upload du modèle.", variant: "destructive" })
+    }
+    setUploadingModel(false)
+    e.target.value = ""
+  }
+
   const toggleListingType = (type: string) => {
     setFormData((prev) => ({
       ...prev,
@@ -109,7 +142,7 @@ export default function NewJewelryPage() {
     }
 
     try {
-      const payload = buildJewelryPayload({ ...formData, images })
+      const payload = buildJewelryPayload({ ...formData, images, model3dUrl: model3dUrl || undefined })
       const newJewelry = await create(payload)
       toast({
         title: "Annonce créée",
@@ -226,6 +259,48 @@ export default function NewJewelryPage() {
                         <input type="file" multiple accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleImageUpload} disabled={uploading} />
                       </label>
                     </div>
+                  </div>
+
+                  {/* 3D Model */}
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2">
+                      <Box className="h-4 w-4 text-violet-600" />
+                      Modèle 3D — Essayage virtuel <span className="text-muted-foreground font-normal">(optionnel)</span>
+                    </Label>
+                    {model3dUrl ? (
+                      <div className="flex items-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2">
+                        <Box className="h-4 w-4 shrink-0 text-violet-600" />
+                        <span className="flex-1 truncate text-sm text-violet-700">
+                          {model3dUrl.split("/").pop()}
+                        </span>
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 text-destructive hover:text-destructive"
+                          onClick={() => setModel3dUrl(null)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <label className={`flex items-center gap-3 rounded-lg border-2 border-dashed border-violet-200 p-4 transition-colors ${uploadingModel ? "cursor-wait opacity-60" : "cursor-pointer hover:border-violet-400"}`}>
+                        <Upload className="h-5 w-5 text-violet-500 shrink-0" />
+                        <div>
+                          <p className="text-sm font-medium text-violet-700">
+                            {uploadingModel ? "Upload en cours..." : "Uploader un fichier .glb"}
+                          </p>
+                          <p className="text-xs text-muted-foreground">Max 50MB — Active l'essayage 3D interactif</p>
+                        </div>
+                        <input
+                          type="file"
+                          accept=".glb,.gltf"
+                          className="hidden"
+                          onChange={handleModelUpload}
+                          disabled={uploadingModel}
+                        />
+                      </label>
+                    )}
                   </div>
 
                   {/* Basic Info */}
@@ -424,8 +499,8 @@ export default function NewJewelryPage() {
                     >
                       Annuler
                     </Button>
-                    <Button type="submit" className="flex-1 gold-button text-white border-0" disabled={loading || uploading}>
-                      {loading ? "Publication..." : uploading ? "Upload en cours..." : "Publier l'annonce"}
+                    <Button type="submit" className="flex-1 gold-button text-white border-0" disabled={loading || uploading || uploadingModel}>
+                      {loading ? "Publication..." : (uploading || uploadingModel) ? "Upload en cours..." : "Publier l'annonce"}
                     </Button>
                   </div>
                 </form>

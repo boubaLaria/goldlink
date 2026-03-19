@@ -71,34 +71,6 @@ services:
     networks:
       - goldlink-network
 
-  # ─── Ollama — utilise l'instance locale du Mac ───────
-  # ollama est installé nativement sur le Mac (brew)
-  # Lancer avant docker compose : ollama serve
-  # Puller le modèle une fois : ollama pull llava-llama3:8b
-
-  # ─── Diffusers Try-On — microservice natif sur le Mac ─
-  # Lancer manuellement : python services/diffusers-tryon/server.py
-  # Tourne sur host.docker.internal:8189
-
-  # ─── Image Validator (Python microservice) ───────────
-  image-validator:
-    build:
-      context: ./services/image-validator
-      dockerfile: Dockerfile
-    container_name: goldlink-image-validator
-    restart: unless-stopped
-    ports:
-      - "8090:8090"
-    environment:
-      - OLLAMA_URL=http://host.docker.internal:11434
-    networks:
-      - goldlink-network
-    healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8090/health || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
 
 volumes:
   postgres_data:

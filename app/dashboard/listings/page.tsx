@@ -10,7 +10,6 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Header } from "@/components/layout/header"
 import { Footer } from "@/components/layout/footer"
-import { JewelryEditSheet } from "@/components/jewelry/jewelry-edit-sheet"
 import { JewelryListingsTable } from "@/components/jewelry/jewelry-listings-table"
 import { JewelryListingsSkeleton } from "@/components/jewelry/jewelry-listings-skeleton"
 import { useAuth } from "@/lib/hooks/use-auth"
@@ -23,7 +22,6 @@ export default function ListingsPage() {
   const router = useRouter()
   const { user: currentUser, loading: authLoading } = useAuth()
   const { jewelry, loading, list, update, delete: deleteJewelry } = useJewelry()
-  const [editItem, setEditItem] = useState<Jewelry | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -33,10 +31,6 @@ export default function ListingsPage() {
   if (authLoading) return null
   if (!currentUser) { router.push("/login"); return null }
 
-  const handleSave = async (id: string, data: any) => {
-    await update(id, data)
-    toast.success("Annonce mise à jour")
-  }
   const handleToggleAvailable = async (item: Jewelry) => {
     await update(item.id, { available: !item.available })
     toast.success(item.available ? "Bijou marqué indisponible" : "Bijou marqué disponible")
@@ -80,7 +74,7 @@ export default function ListingsPage() {
             ) : (
               <JewelryListingsTable
                 jewelry={jewelry}
-                onEdit={setEditItem}
+                onEdit={(item) => router.push(`/jewelry/${item.id}/edit`)}
                 onDelete={setDeleteId}
                 onToggleAvailable={handleToggleAvailable}
               />
@@ -89,13 +83,6 @@ export default function ListingsPage() {
         </main>
         <Footer />
       </div>
-
-      <JewelryEditSheet
-        jewelry={editItem}
-        open={!!editItem}
-        onClose={() => setEditItem(null)}
-        onSave={handleSave}
-      />
 
       <AlertDialog open={!!deleteId} onOpenChange={(o) => !o && setDeleteId(null)}>
         <AlertDialogContent>

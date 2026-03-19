@@ -10,7 +10,7 @@ const POLL_INTERVAL_MS = 2500
 
 export interface TryOnServiceStatus {
   ollama: boolean
-  comfyui: boolean
+  diffusers: boolean
   fullFeatures: boolean
   previewOnly: boolean
 }
@@ -118,7 +118,7 @@ export function useTryOn(): UseTryOnReturn {
     } catch {
       const fallback: TryOnServiceStatus = {
         ollama: false,
-        comfyui: false,
+        diffusers: false,
         fullFeatures: false,
         previewOnly: true,
       }

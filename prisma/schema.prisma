@@ -66,26 +66,6 @@ enum GoldPurity {
   K24
 }
 
-enum TryOnType {
-  FACE      // Boucles d'oreilles, ear cuffs
-  NECK      // Colliers, chaînes, pendentifs
-  WRIST     // Bracelets
-  FINGER    // Bagues
-  MULTI     // Parures (plusieurs zones)
-}
-
-enum TryOnMode {
-  WEBCAM
-  UPLOAD
-}
-
-enum TryOnSessionStatus {
-  PENDING
-  PROCESSING
-  DONE
-  FAILED
-}
-
 // ============================================================================
 // MODELS
 // ============================================================================
@@ -107,7 +87,7 @@ model User {
   country              String   @default("France")      // Seller's country
   currency             String   @default("EUR")         // EUR, USD, GBP, etc
   cin                  String?  @unique                 // National ID (country specific)
-  
+
   // Relations
   ownedJewelry         Jewelry[]       @relation("Owner")
   rentalBookingsAsRenter Booking[]     @relation("Renter")
@@ -121,7 +101,6 @@ model User {
   reviewsGiven         Review[]        @relation("Reviewer")
   reviewsReceived      Review[]        @relation("Target")
   estimations          Estimation[]    @relation("User")
-  tryOnSessions        TryOnSession[]
 
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
@@ -129,22 +108,22 @@ model User {
 
 model Jewelry {
   id                   String   @id @default(cuid())
-  
+
   // Owner info
   ownerId              String
   owner                User     @relation("Owner", fields: [ownerId], references: [id], onDelete: Cascade)
-  
+
   // Basic info
   title                String
   description          String   @db.Text
   images               String[] // Array of image paths
   type                 JewelryType
-  
+
   // Specifications
   weight               Float    // Grams
   purity               GoldPurity
   estimatedValue       Float    // Estimated value (in seller's currency)
-  
+
   // Listing info
   listingTypes         ListingType[]
   rentPricePerDay      Float?   // Price per day (in seller's currency)
@@ -158,17 +137,14 @@ model Jewelry {
   views                Int      @default(0)
   rating               Float    @default(0)
   reviewCount          Int      @default(0)
-  
-  // Virtual try-on
-  tryOnAvailable       Boolean     @default(false)
-  tryOnType            TryOnType?
-  tryOnImageUrl        String?     // URL du PNG transparent validé
+
+  // Virtual try-on 3D (activé uniquement si model3dUrl est renseigné)
+  model3dUrl           String?  // URL du fichier .glb — si présent, essayage 3D activé
 
   // Relations
   bookings             Booking[]
   transactions         Transaction[]
   reviews              Review[]
-  tryOnSessions        TryOnSession[]
 
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
@@ -176,31 +152,31 @@ model Jewelry {
 
 model Booking {
   id                   String   @id @default(cuid())
-  
+
   // Jewelry and participants
   jewelryId            String
   jewelry              Jewelry  @relation(fields: [jewelryId], references: [id], onDelete: Cascade)
-  
+
   renterId             String
   renter               User     @relation("Renter", fields: [renterId], references: [id], onDelete: Cascade)
-  
+
   ownerId              String
   owner                User     @relation("Owner", fields: [ownerId], references: [id], onDelete: Cascade)
-  
+
   // Dates and pricing
   startDate            DateTime
   endDate              DateTime
   totalPrice           Float
   deposit              Float
-  
+
   // Status and insurance
   status               BookingStatus @default(PENDING)
   insurance            Boolean  @default(false)
-  
+
   // Relations
   transaction          Transaction?
   reviews              Review[]
-  
+
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
@@ -211,27 +187,27 @@ model Booking {
 
 model Transaction {
   id                   String   @id @default(cuid())
-  
+
   // Links to booking or jewelry (One booking = One transaction)
   bookingId            String?  @unique
   booking              Booking? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
-  
+
   jewelryId            String?
   jewelry              Jewelry? @relation(fields: [jewelryId], references: [id], onDelete: SetNull)
-  
+
   // Participants
   buyerId              String
   buyer                User     @relation("Buyer", fields: [buyerId], references: [id], onDelete: Cascade)
-  
+
   sellerId             String
   seller               User     @relation("Seller", fields: [sellerId], references: [id], onDelete: Cascade)
-  
+
   // Financial
   amount               Float
   commission           Float    // GoldLink commission
   status               TransactionStatus @default(PENDING)
   type                 ListingType // RENT or SALE
-  
+
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
@@ -241,23 +217,23 @@ model Transaction {
 
 model Message {
   id                   String   @id @default(cuid())
-  
+
   // Participants
   senderId             String
   sender               User     @relation("Sender", fields: [senderId], references: [id], onDelete: Cascade)
-  
+
   receiverId           String
   receiver             User     @relation("Receiver", fields: [receiverId], references: [id], onDelete: Cascade)
-  
+
   // Conversation
   conversationId       String
   conversation         Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  
+
   // Content
   content              String   @db.Text
   images               String[] // Array of image paths
   status               MessageStatus @default(SENT)
-  
+
   createdAt            DateTime @default(now())
 
   @@index([conversationId])
@@ -266,18 +242,18 @@ model Message {
 
 model Conversation {
   id                   String   @id @default(cuid())
-  
+
   // Participants
   user1Id              String
   user1                User     @relation("User1", fields: [user1Id], references: [id], onDelete: Cascade)
-  
+
   user2Id              String
   user2                User     @relation("User2", fields: [user2Id], references: [id], onDelete: Cascade)
-  
+
   // Messages
   messages             Message[]
   lastMessageId        String?
-  
+
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
@@ -288,31 +264,31 @@ model Conversation {
 
 model Review {
   id                   String   @id @default(cuid())
-  
+
   // Reviewer
   reviewerId           String
   reviewer             User     @relation("Reviewer", fields: [reviewerId], references: [id], onDelete: Cascade)
-  
+
   // Target (can be User or Jewelry)
   targetId             String
   targetType           String   // "user" or "jewelry"
-  
+
   // For Jewelry reviews
   jewelryId            String?
   jewelry              Jewelry? @relation(fields: [jewelryId], references: [id], onDelete: Cascade)
-  
+
   // For User reviews
   targetUserId         String?
   targetUser           User?    @relation("Target", fields: [targetUserId], references: [id], onDelete: Cascade)
-  
+
   // For Booking context
   bookingId            String?
   booking              Booking? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
-  
+
   // Rating and comment
   rating               Int      // 1-5
   comment              String   @db.Text
-  
+
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
@@ -323,54 +299,25 @@ model Review {
 
 model Estimation {
   id                   String   @id @default(cuid())
-  
+
   // User who requested
   userId               String
   user                 User     @relation("User", fields: [userId], references: [id], onDelete: Cascade)
-  
+
   // Jewelry details
   images               String[] // Array of image paths
   weight               Float
   purity               GoldPurity
-  
+
   // Valuation
   estimatedGoldValue   Float    // Pure gold value
   estimatedCommercialValue Float // Commercial value with markup
   confidence           Float    // 0-1 confidence score
   certified            Boolean  @default(false)
-  
+
   createdAt            DateTime @default(now())
 
   @@index([userId])
-}
-
-model TryOnSession {
-  id                   String             @id @default(cuid())
-
-  // Participants
-  userId               String
-  user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  jewelryId            String
-  jewelry              Jewelry            @relation(fields: [jewelryId], references: [id], onDelete: Cascade)
-
-  // Session info
-  mode                 TryOnMode
-  status               TryOnSessionStatus @default(PENDING)
-
-  // Images
-  inputImageUrl        String?            // Photo de l'utilisateur (null si webcam sans sauvegarde)
-  outputImageUrl       String?            // Image générée par ComfyUI
-
-  // ComfyUI tracking
-  comfyPromptId        String?            // ID du job ComfyUI pour le polling
-
-  createdAt            DateTime           @default(now())
-  updatedAt            DateTime           @updatedAt
-
-  @@index([userId])
-  @@index([jewelryId])
-  @@index([status])
 }
 
 // ============================================================================
@@ -380,4 +327,5 @@ model TryOnSession {
 // - IDs are CUID for better distributed system support
 // - Indexes on foreign keys and common filters for performance
 // - Cascade delete to maintain referential integrity
+// - Try-on 3D : activé implicitement si model3dUrl IS NOT NULL
 // ============================================================================

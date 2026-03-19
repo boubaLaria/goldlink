@@ -1,6 +1,6 @@
 "use client"
 
-import { Eye, Edit2, Trash2, ToggleLeft, ToggleRight, Gem, Sparkles } from "lucide-react"
+import { Eye, Edit2, Trash2, ToggleLeft, ToggleRight, Gem, Box } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -94,10 +94,10 @@ export function JewelryListingsTable({ jewelry, onEdit, onDelete, onToggleAvaila
                     className={`text-xs w-fit ${item.available ? STATUS_BADGE.available.class : STATUS_BADGE.unavailable.class}`}>
                     {item.available ? "Disponible" : "Indisponible"}
                   </Badge>
-                  {item.tryOnAvailable && (
+                  {(item as any).model3dUrl && (
                     <Badge className="text-[10px] bg-violet-100 text-violet-700 border-violet-200 w-fit flex items-center gap-1">
-                      <Sparkles className="h-2.5 w-2.5" />
-                      Try-on
+                      <Box className="h-2.5 w-2.5" />
+                      3D
                     </Badge>
                   )}
                 </div>

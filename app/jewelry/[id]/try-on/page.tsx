@@ -10,17 +10,16 @@ export default async function TryOnPage({ params }: { params: Promise<{ id: stri
     select: {
       id: true,
       title: true,
+      type: true,
       images: true,
-      tryOnAvailable: true,
-      tryOnType: true,
-      tryOnImageUrl: true,
+      model3dUrl: true,
       owner: {
         select: { id: true, firstName: true, lastName: true },
       },
     },
   })
 
-  if (!jewelry || !jewelry.tryOnAvailable || !jewelry.tryOnImageUrl) {
+  if (!jewelry || !jewelry.model3dUrl) {
     notFound()
   }
 

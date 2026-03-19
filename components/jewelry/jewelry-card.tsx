@@ -2,7 +2,7 @@
 
 import Image from "next/image"
 import Link from "next/link"
-import { Heart, MapPin, Star, Sparkles } from "lucide-react"
+import { Heart, MapPin, Star, Box } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -52,10 +52,10 @@ export function JewelryCard({ jewelry, onFavorite, isFavorite = false }: Jewelry
                 Vente
               </Badge>
             )}
-            {(jewelry as any).tryOnAvailable && (
+            {(jewelry as any).model3dUrl && (
               <Badge className="bg-violet-600 text-white border-0 flex items-center gap-1 w-fit">
-                <Sparkles className="h-3 w-3" />
-                Essayage virtuel
+                <Box className="h-3 w-3" />
+                Essayage 3D
               </Badge>
             )}
           </div>

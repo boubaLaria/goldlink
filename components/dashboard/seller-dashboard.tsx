@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Calendar, TrendingUp, DollarSign, Gem, Star, Sparkles } from "lucide-react"
+import { Calendar, TrendingUp, DollarSign, Gem, Star, Box } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -79,19 +79,16 @@ export function SellerDashboard({ user, jewelry, bookings }: SellerDashboardProp
       <Card className="mb-8 border-violet-200">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-violet-600" />
-            Essayage virtuel
+            <Box className="h-5 w-5 text-violet-600" />
+            Essayage 3D
           </CardTitle>
           <CardDescription>
-            {jewelry.filter((j: any) => j.tryOnAvailable).length} bijou{jewelry.filter((j: any) => j.tryOnAvailable).length !== 1 ? "x" : ""} avec try-on activé
+            {jewelry.filter((j: any) => j.model3dUrl).length} bijou{jewelry.filter((j: any) => j.model3dUrl).length !== 1 ? "x" : ""} avec modèle 3D
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex gap-3">
+        <CardContent>
           <Button asChild className="bg-violet-600 hover:bg-violet-700 text-white border-0">
-            <Link href="/dashboard/listings">Activer sur mes bijoux</Link>
-          </Button>
-          <Button asChild variant="outline" className="bg-transparent">
-            <Link href="/dashboard/tryon-history">Mon historique</Link>
+            <Link href="/dashboard/listings">Gérer mes bijoux</Link>
           </Button>
         </CardContent>
       </Card>

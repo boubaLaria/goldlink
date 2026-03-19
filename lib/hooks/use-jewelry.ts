@@ -22,9 +22,7 @@ export interface Jewelry {
   views: number
   rating: number
   reviewCount: number
-  tryOnAvailable: boolean
-  tryOnType?: 'FACE' | 'NECK' | 'WRIST' | 'FINGER' | 'MULTI'
-  tryOnImageUrl?: string
+  model3dUrl?: string | null
   owner?: {
     id: string
     firstName: string
@@ -44,7 +42,7 @@ interface JewelryFilters {
   location?: string
   search?: string
   ownerId?: string
-  tryOnAvailable?: boolean
+  has3d?: boolean
   limit?: number
   skip?: number
   [key: string]: string | number | boolean | null | undefined

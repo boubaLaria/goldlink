@@ -15,9 +15,7 @@ const jewelryUpdateSchema = z.object({
   salePrice: z.number().nonnegative().optional(),
   location: z.string().min(1).optional(),
   available: z.boolean().optional(),
-  tryOnAvailable: z.boolean().optional(),
-  tryOnType: z.enum(['FACE', 'NECK', 'WRIST', 'FINGER', 'MULTI']).optional(),
-  tryOnImageUrl: z.string().optional(),
+  model3dUrl: z.string().nullable().optional(),
 })
 
 export async function GET(

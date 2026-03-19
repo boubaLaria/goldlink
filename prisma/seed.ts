@@ -1,7 +1,5 @@
 import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
-import * as fs from 'fs'
-import * as path from 'path'
 
 const prisma = new PrismaClient()
 
@@ -28,62 +26,6 @@ const PHOTOS = {
   set1:       IMG('1601121141461-9d6647bef0a1'),
 }
 
-// ── Try-on images — stockées dans prisma/seeds/images/ (commitées dans le repo)
-const TRYON_UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads', 'jewelry')
-const TRYON_SOURCE_DIR = path.join(process.cwd(), 'prisma', 'seeds', 'images')
-
-// Chaque bijou a deux fichiers :
-//   .jpg → image catalogue (avec fond, Unsplash)
-//   .png → image essayage (fond retiré par rembg, transparent)
-const TRYON_BASES = [
-  'tryon-earrings-gold',
-  'tryon-earrings-creoles',
-  'tryon-necklace-berber',
-  'tryon-necklace-chain',
-  'tryon-necklace-riviere',
-  'tryon-bracelet-jonc',
-  'tryon-bracelet-stars',
-  'tryon-bracelet-tennis',
-  'tryon-ring-chevaliere',
-  'tryon-ring-sapphire',
-]
-
-// ── Copie les images depuis prisma/seeds/images/ vers public/uploads/jewelry/ ─
-function copyTryOnImages(): { jpgUrl: Map<string, string>; pngUrl: Map<string, string> } {
-  const jpgUrl = new Map<string, string>()
-  const pngUrl = new Map<string, string>()
-
-  if (!fs.existsSync(TRYON_UPLOAD_DIR)) {
-    fs.mkdirSync(TRYON_UPLOAD_DIR, { recursive: true })
-  }
-
-  console.log(`\n📸 Copie des images try-on → ${TRYON_UPLOAD_DIR}`)
-
-  for (const base of TRYON_BASES) {
-    for (const ext of ['jpg', 'png']) {
-      const filename = `${base}.${ext}`
-      const src  = path.join(TRYON_SOURCE_DIR, filename)
-      const dest = path.join(TRYON_UPLOAD_DIR, filename)
-
-      if (!fs.existsSync(src)) {
-        console.warn(`  ⚠ ${filename} — introuvable dans prisma/seeds/images/`)
-        continue
-      }
-
-      fs.copyFileSync(src, dest)
-      const size = Math.round(fs.statSync(dest).size / 1024)
-      const label = ext === 'jpg' ? '🖼  catalogue' : '🪞 essayage '
-      console.log(`  ✓ ${filename} ${label} — ${size} KB`)
-
-      const url = `/uploads/jewelry/${filename}`
-      if (ext === 'jpg') jpgUrl.set(base, url)
-      else               pngUrl.set(base, url)
-    }
-  }
-
-  return { jpgUrl, pngUrl }
-}
-
 // ── Helper dates ─────────────────────────────────────────────────────────────
 function monthsAgo(n: number, day = 15) {
   const d = new Date()
@@ -97,16 +39,7 @@ function monthsAgo(n: number, day = 15) {
 async function main() {
   console.log('🌱 Seeding database...')
 
-  // ── Télécharger les images try-on ─────────────────────────────────────────
-  const { jpgUrl, pngUrl } = copyTryOnImages()
-
-  // J = image catalogue (JPEG avec fond) — utilisée dans images[]
-  // P = image essayage (PNG transparent rembg) — utilisée dans tryOnImageUrl
-  const J = (base: string) => jpgUrl.get(base) ?? `/uploads/jewelry/${base}.jpg`
-  const P = (base: string) => pngUrl.get(base) ?? `/uploads/jewelry/${base}.png`
-
   // ── Nettoyage ──────────────────────────────────────────────────────────────
-  await prisma.tryOnSession.deleteMany()
   await prisma.review.deleteMany()
   await prisma.estimation.deleteMany()
   await prisma.message.deleteMany()
@@ -171,9 +104,10 @@ async function main() {
   ])
 
   // ── Bijoux — Fatima (Paris) ────────────────────────────────────────────────
+  // model3dUrl : renseigné = essayage 3D activé. null = pas d'essayage.
   const [j1, j2, j3, j4, j5] = await Promise.all([
 
-    // j1 — Collier Berbère ✨ TRY-ON NECK
+    // j1 — Collier Berbère (pas de modèle 3D pour l'instant)
     prisma.jewelry.create({ data: {
       ownerId: fatima.id,
       title: 'Collier Berbère Or 18K', type: 'NECKLACE', purity: 'K18',
@@ -183,12 +117,9 @@ async function main() {
       listingTypes: ['RENT', 'SALE'], rentPricePerDay: 130, salePrice: 9200,
       available: true, location: 'Paris', country: 'France', currency: 'EUR',
       views: 342, rating: 4.9, reviewCount: 5,
-      tryOnAvailable: true,
-      tryOnType: 'NECK',
-      tryOnImageUrl: P('tryon-necklace-berber'),
     }}),
 
-    // j2 — Parure Mariage (pas de try-on, type MULTI trop complexe pour démo)
+    // j2 — Parure Mariage (pas de modèle 3D)
     prisma.jewelry.create({ data: {
       ownerId: fatima.id,
       title: 'Parure Mariage Complète Or 22K', type: 'BRACELET', purity: 'K22',
@@ -200,7 +131,7 @@ async function main() {
       views: 215, rating: 5.0, reviewCount: 3,
     }}),
 
-    // j3 — Boucles d'oreilles ✨ TRY-ON FACE
+    // j3 — Boucles d'oreilles ✨ ESSAYAGE 3D
     prisma.jewelry.create({ data: {
       ownerId: fatima.id,
       title: "Boucles d'Oreilles Tradition Or 18K", type: 'EARRINGS', purity: 'K18',
@@ -210,12 +141,10 @@ async function main() {
       listingTypes: ['RENT', 'SALE'], rentPricePerDay: 40, salePrice: 2650,
       available: true, location: 'Paris', country: 'France', currency: 'EUR',
       views: 178, rating: 4.8, reviewCount: 4,
-      tryOnAvailable: true,
-      tryOnType: 'FACE',
-      tryOnImageUrl: P('tryon-earrings-gold'),
+      model3dUrl: '/models/earrings-gold.glb',
     }}),
 
-    // j4 — Pendentif (pas de try-on)
+    // j4 — Pendentif (pas de modèle 3D)
     prisma.jewelry.create({ data: {
       ownerId: fatima.id,
       title: 'Pendentif Symboles Or 14K', type: 'PENDANT', purity: 'K14',
@@ -227,7 +156,7 @@ async function main() {
       views: 94, rating: 4.6, reviewCount: 2,
     }}),
 
-    // j5 — Chaîne Tissée ✨ TRY-ON NECK
+    // j5 — Chaîne Tissée (pas de modèle 3D)
     prisma.jewelry.create({ data: {
       ownerId: fatima.id,
       title: 'Chaîne Tissée Or 22K', type: 'CHAIN', purity: 'K22',
@@ -237,16 +166,13 @@ async function main() {
       listingTypes: ['RENT', 'SALE'], rentPricePerDay: 100, salePrice: 7100,
       available: true, location: 'Paris', country: 'France', currency: 'EUR',
       views: 156, rating: 4.7, reviewCount: 2,
-      tryOnAvailable: true,
-      tryOnType: 'NECK',
-      tryOnImageUrl: P('tryon-necklace-chain'),
     }}),
   ])
 
   // ── Bijoux — Karim (Marseille) ────────────────────────────────────────────
   const [j6, j7, j8, j9, j10] = await Promise.all([
 
-    // j6 — Chevalière ✨ TRY-ON FINGER
+    // j6 — Chevalière (pas de modèle 3D)
     prisma.jewelry.create({ data: {
       ownerId: karim.id,
       title: 'Chevalière Artisan Or 18K', type: 'RING', purity: 'K18',
@@ -256,12 +182,9 @@ async function main() {
       listingTypes: ['SALE'], salePrice: 3400,
       available: true, location: 'Marseille', country: 'France', currency: 'EUR',
       views: 267, rating: 4.9, reviewCount: 6,
-      tryOnAvailable: true,
-      tryOnType: 'FINGER',
-      tryOnImageUrl: P('tryon-ring-chevaliere'),
     }}),
 
-    // j7 — Collier Maille Royale ✨ TRY-ON NECK
+    // j7 — Collier Maille Royale (pas de modèle 3D)
     prisma.jewelry.create({ data: {
       ownerId: karim.id,
       title: 'Collier Maille Royale Or 18K', type: 'NECKLACE', purity: 'K18',
@@ -271,12 +194,9 @@ async function main() {
       listingTypes: ['RENT', 'SALE'], rentPricePerDay: 110, salePrice: 7800,
       available: true, location: 'Marseille', country: 'France', currency: 'EUR',
       views: 198, rating: 4.8, reviewCount: 4,
-      tryOnAvailable: true,
-      tryOnType: 'NECK',
-      tryOnImageUrl: P('tryon-necklace-berber'),
     }}),
 
-    // j8 — Bracelet Jonc ✨ TRY-ON WRIST
+    // j8 — Bracelet Jonc (pas de modèle 3D)
     prisma.jewelry.create({ data: {
       ownerId: karim.id,
       title: 'Bracelet Jonc Massif Or 22K', type: 'BRACELET', purity: 'K22',
@@ -286,12 +206,9 @@ async function main() {
       listingTypes: ['RENT', 'SALE'], rentPricePerDay: 90, salePrice: 6500,
       available: true, location: 'Marseille', country: 'France', currency: 'EUR',
       views: 145, rating: 4.9, reviewCount: 3,
-      tryOnAvailable: true,
-      tryOnType: 'WRIST',
-      tryOnImageUrl: P('tryon-bracelet-jonc'),
     }}),
 
-    // j9 — Bague Solitaire (pas de try-on — vendu uniquement, pas de prêt essayage)
+    // j9 — Bague Solitaire (pas de modèle 3D)
     prisma.jewelry.create({ data: {
       ownerId: karim.id,
       title: 'Bague Solitaire Or 24K', type: 'RING', purity: 'K24',
@@ -303,7 +220,7 @@ async function main() {
       views: 312, rating: 5.0, reviewCount: 8,
     }}),
 
-    // j10 — Pendentif Croissant (pas de try-on)
+    // j10 — Pendentif Croissant (pas de modèle 3D)
     prisma.jewelry.create({ data: {
       ownerId: karim.id,
       title: 'Pendentif Croissant Or 18K', type: 'PENDANT', purity: 'K18',
@@ -319,7 +236,7 @@ async function main() {
   // ── Bijoux — Sophie (Lyon) ────────────────────────────────────────────────
   const [j11, j12, j13, j14] = await Promise.all([
 
-    // j11 — Collier Minimal (pas de try-on)
+    // j11 — Collier Minimal (pas de modèle 3D)
     prisma.jewelry.create({ data: {
       ownerId: sophie.id,
       title: 'Collier Minimal Or 14K', type: 'NECKLACE', purity: 'K14',
@@ -331,7 +248,7 @@ async function main() {
       views: 423, rating: 4.7, reviewCount: 9,
     }}),
 
-    // j12 — Créoles Géométriques ✨ TRY-ON FACE
+    // j12 — Créoles Géométriques (pas de modèle 3D)
     prisma.jewelry.create({ data: {
       ownerId: sophie.id,
       title: 'Créoles Géométriques Or 18K', type: 'EARRINGS', purity: 'K18',
@@ -341,12 +258,9 @@ async function main() {
       listingTypes: ['RENT', 'SALE'], rentPricePerDay: 28, salePrice: 1650,
       available: true, location: 'Lyon', country: 'France', currency: 'EUR',
       views: 287, rating: 4.8, reviewCount: 7,
-      tryOnAvailable: true,
-      tryOnType: 'FACE',
-      tryOnImageUrl: P('tryon-earrings-creoles'),
     }}),
 
-    // j13 — Bracelet Chaîne Étoiles ✨ TRY-ON WRIST
+    // j13 — Bracelet Chaîne Étoiles (pas de modèle 3D)
     prisma.jewelry.create({ data: {
       ownerId: sophie.id,
       title: 'Bracelet Chaîne Étoiles Or 18K', type: 'BRACELET', purity: 'K18',
@@ -356,12 +270,9 @@ async function main() {
       listingTypes: ['RENT', 'SALE'], rentPricePerDay: 20, salePrice: 1200,
       available: true, location: 'Lyon', country: 'France', currency: 'EUR',
       views: 334, rating: 4.6, reviewCount: 11,
-      tryOnAvailable: true,
-      tryOnType: 'WRIST',
-      tryOnImageUrl: P('tryon-bracelet-stars'),
     }}),
 
-    // j14 — Pendentif Géométrique (pas de try-on)
+    // j14 — Pendentif Géométrique (pas de modèle 3D)
     prisma.jewelry.create({ data: {
       ownerId: sophie.id,
       title: 'Pendentif Géométrique Or 14K', type: 'PENDANT', purity: 'K14',
@@ -377,7 +288,7 @@ async function main() {
   // ── Bijoux — Pierre (Bordeaux — Haute Joaillerie) ─────────────────────────
   const [j15, j16, j17, j18] = await Promise.all([
 
-    // j15 — Collier Rivière Diamants ✨ TRY-ON NECK
+    // j15 — Collier Rivière Diamants (pas de modèle 3D)
     prisma.jewelry.create({ data: {
       ownerId: pierre.id,
       title: 'Collier Rivière Or 18K Diamants', type: 'NECKLACE', purity: 'K18',
@@ -387,12 +298,9 @@ async function main() {
       listingTypes: ['RENT', 'SALE'], rentPricePerDay: 350, salePrice: 28000,
       available: true, location: 'Bordeaux', country: 'France', currency: 'EUR',
       views: 512, rating: 5.0, reviewCount: 4,
-      tryOnAvailable: true,
-      tryOnType: 'NECK',
-      tryOnImageUrl: P('tryon-necklace-riviere'),
     }}),
 
-    // j16 — Bague Saphir Royal ✨ TRY-ON FINGER
+    // j16 — Bague Saphir Royal ✨ ESSAYAGE 3D
     prisma.jewelry.create({ data: {
       ownerId: pierre.id,
       title: 'Bague Saphir Royal Or 18K', type: 'RING', purity: 'K18',
@@ -402,12 +310,10 @@ async function main() {
       listingTypes: ['RENT', 'SALE'], rentPricePerDay: 180, salePrice: 12500,
       available: true, location: 'Bordeaux', country: 'France', currency: 'EUR',
       views: 389, rating: 5.0, reviewCount: 6,
-      tryOnAvailable: true,
-      tryOnType: 'FINGER',
-      tryOnImageUrl: P('tryon-ring-sapphire'),
+      model3dUrl: '/models/ring-sapphire.glb',
     }}),
 
-    // j17 — Bracelet Tennis ✨ TRY-ON WRIST
+    // j17 — Bracelet Tennis ✨ ESSAYAGE 3D
     prisma.jewelry.create({ data: {
       ownerId: pierre.id,
       title: 'Bracelet Tennis Or 18K', type: 'BRACELET', purity: 'K18',
@@ -417,12 +323,10 @@ async function main() {
       listingTypes: ['RENT', 'SALE'], rentPricePerDay: 260, salePrice: 18500,
       available: true, location: 'Bordeaux', country: 'France', currency: 'EUR',
       views: 445, rating: 5.0, reviewCount: 7,
-      tryOnAvailable: true,
-      tryOnType: 'WRIST',
-      tryOnImageUrl: P('tryon-bracelet-tennis'),
+      model3dUrl: '/models/bracelet-tennis.glb',
     }}),
 
-    // j18 — Pendentif Croix (pas de try-on)
+    // j18 — Pendentif Croix (pas de modèle 3D)
     prisma.jewelry.create({ data: {
       ownerId: pierre.id,
       title: 'Pendentif Croix Or 24K', type: 'PENDANT', purity: 'K24',
@@ -456,10 +360,8 @@ async function main() {
 
   const bookings = []
   for (const b of bookingData) {
-    const start = monthsAgo(b.months, 5)
-    const end   = new Date(start)
-    end.setDate(end.getDate() + Math.floor(b.price / (b.jewelry.rentPricePerDay || 100)))
-
+    const start = monthsAgo(b.months, 10)
+    const end = monthsAgo(b.months, 18)
     const booking = await prisma.booking.create({
       data: {
         jewelryId: b.jewelry.id,
@@ -470,137 +372,88 @@ async function main() {
         totalPrice: b.price,
         deposit: b.deposit,
         status: b.status,
-        insurance: Math.random() > 0.5,
-        createdAt: start,
-      },
+        insurance: b.months % 2 === 0,
+      }
     })
-    bookings.push({ booking, jewelry: b.jewelry, status: b.status })
+    bookings.push(booking)
   }
 
-  // ── Transactions (réservations terminées) ─────────────────────────────────
-  for (const { booking, status } of bookings) {
-    if (status === 'COMPLETED') {
-      await prisma.transaction.create({
-        data: {
-          bookingId: booking.id,
-          buyerId: amina.id,
-          sellerId: booking.ownerId,
-          jewelryId: booking.jewelryId,
-          amount: booking.totalPrice,
-          commission: booking.totalPrice * 0.05,
-          status: 'COMPLETED',
-          type: 'RENT',
-        },
-      })
-    }
-  }
-
-  // ── Avis clients ──────────────────────────────────────────────────────────
-  const comments = [
-    'Bijou magnifique, conforme à la description. Très satisfait !',
-    'Excellente qualité, vendeur très professionnel.',
-    'Superbe pièce, livraison soignée. Je recommande vivement.',
-    'Bijou exceptionnel pour mon mariage. Merci !',
-    'Parfait en tout point, je reviendrai.',
+  // ── Reviews ───────────────────────────────────────────────────────────────
+  const reviewData = [
+    { jewelry: j1,  booking: bookings[0], rating: 5, comment: "Magnifique collier, authentique et bien entretenu. La livraison était rapide et l'emballage soigné." },
+    { jewelry: j3,  booking: bookings[6], rating: 5, comment: "Des boucles d'oreilles superbes ! Exactement comme sur les photos. Très satisfaite de ma location." },
+    { jewelry: j7,  booking: bookings[4], rating: 4, comment: "Beau collier, qualité au rendez-vous. Quelques légères égratignures mais rien de gênant." },
+    { jewelry: j15, booking: bookings[5], rating: 5, comment: "Une pièce exceptionnelle ! Les diamants sont éblouissants. Service impeccable de Pierre." },
+    { jewelry: j16, booking: bookings[8], rating: 5, comment: "Bague de rêve ! Le saphir est d'une beauté rare. Je recommande vivement." },
   ]
-  const completedBookings = bookings.filter(b => b.status === 'COMPLETED').slice(0, 5)
-  await Promise.all(completedBookings.map(({ booking, jewelry }) =>
-    prisma.review.create({
+
+  for (const r of reviewData) {
+    await prisma.review.create({
       data: {
         reviewerId: amina.id,
-        targetId: jewelry.id,
+        targetId: r.jewelry.id,
         targetType: 'jewelry',
-        jewelryId: jewelry.id,
-        bookingId: booking.id,
-        rating: Math.random() > 0.3 ? 5 : 4,
-        comment: comments[Math.floor(Math.random() * comments.length)],
-      },
+        jewelryId: r.jewelry.id,
+        bookingId: r.booking.id,
+        rating: r.rating,
+        comment: r.comment,
+      }
     })
-  ))
+  }
 
-  // ── Estimation ────────────────────────────────────────────────────────────
+  // ── Conversations & messages ───────────────────────────────────────────────
+  const conversations = await Promise.all([
+    prisma.conversation.create({ data: { user1Id: amina.id, user2Id: fatima.id } }),
+    prisma.conversation.create({ data: { user1Id: amina.id, user2Id: karim.id } }),
+    prisma.conversation.create({ data: { user1Id: amina.id, user2Id: pierre.id } }),
+  ])
+
+  const messageData = [
+    { conv: conversations[0], sender: amina,  receiver: fatima,  text: "Bonjour ! Je suis intéressée par votre collier berbère. Est-il disponible pour le 15 mars ?" },
+    { conv: conversations[0], sender: fatima, receiver: amina,   text: "Bonjour Amina ! Oui, il est disponible. Souhaitez-vous voir plus de photos ?" },
+    { conv: conversations[0], sender: amina,  receiver: fatima,  text: "Oui s'il vous plaît, et pourriez-vous m'expliquer les conditions de location ?" },
+    { conv: conversations[1], sender: amina,  receiver: karim,   text: "Bonjour Karim, votre chevalière m'intéresse beaucoup. Faites-vous des réductions pour les achats directs ?" },
+    { conv: conversations[1], sender: karim,  receiver: amina,   text: "Bonjour ! Je peux vous proposer une remise de 5% si vous passez par la messagerie. Qu'en pensez-vous ?" },
+    { conv: conversations[1], sender: amina,  receiver: karim,   text: "C'est très intéressant ! Je vais y réfléchir et vous recontacter rapidement." },
+    { conv: conversations[2], sender: amina,  receiver: pierre,  text: "Bonjour Pierre, le collier rivière diamants est somptueux. Est-il possible de le voir en boutique ?" },
+    { conv: conversations[2], sender: pierre, receiver: amina,   text: "Absolument ! Je vous accueille à Bordeaux sur rendez-vous. Quand êtes-vous disponible ?" },
+    { conv: conversations[2], sender: amina,  receiver: pierre,  text: "Je pourrai être là le weekend du 20. Je vous envoie un message pour confirmer." },
+  ]
+
+  for (const m of messageData) {
+    await prisma.message.create({
+      data: {
+        senderId: m.sender.id,
+        receiverId: m.receiver.id,
+        conversationId: m.conv.id,
+        content: m.text,
+      }
+    })
+  }
+
+  // ── Estimation ─────────────────────────────────────────────────────────────
   await prisma.estimation.create({
     data: {
       userId: amina.id,
-      images: [PHOTOS.necklace1],
-      weight: 25.5, purity: 'K18',
-      estimatedGoldValue: 11475,
-      estimatedCommercialValue: 22000,
+      images: [PHOTOS.ring1],
+      weight: 12.5,
+      purity: 'K18',
+      estimatedGoldValue: 750,
+      estimatedCommercialValue: 1200,
       confidence: 0.92,
       certified: false,
-    },
+    }
   })
 
-  // ── Conversations & Messages ───────────────────────────────────────────────
-  const convPairs = [
-    { u1: fatima, u2: amina, msgs: [
-      { from: amina,  to: fatima, text: 'Bonjour, le collier berbère est-il encore disponible pour le 15 mars ?' },
-      { from: fatima, to: amina,  text: 'Bonjour Amina ! Oui, il est disponible. Quelle est la durée souhaitée ?' },
-      { from: amina,  to: fatima, text: 'Une semaine pour un mariage. Quel est le tarif ?' },
-      { from: fatima, to: amina,  text: "C'est 130€/jour soit 910€ pour 7 jours, avec un dépôt de caution de 20%. Je vous envoie le contrat." },
-    ]},
-    { u1: karim, u2: amina, msgs: [
-      { from: amina, to: karim, text: 'Bonjour Karim, la chevalière peut-elle être personnalisée avec mes initiales ?' },
-      { from: karim, to: amina, text: 'Absolument ! Comptez 10 jours supplémentaires. Un supplément de 150€ pour la gravure.' },
-      { from: amina, to: karim, text: 'Parfait, je suis intéressée. Comment procède-t-on ?' },
-    ]},
-    { u1: pierre, u2: amina, msgs: [
-      { from: amina,  to: pierre, text: 'Bonjour, je souhaite louer le collier rivière pour une soirée de gala.' },
-      { from: pierre, to: amina,  text: 'Bonjour ! Bien sûr. La location inclut une assurance tous risques et un transport sécurisé.' },
-    ]},
-  ]
-
-  for (const pair of convPairs) {
-    const [id1, id2] = [pair.u1.id, pair.u2.id].sort()
-    const conv = await prisma.conversation.create({
-      data: { user1Id: id1, user2Id: id2 },
-    })
-    let lastMsg
-    for (const m of pair.msgs) {
-      lastMsg = await prisma.message.create({
-        data: {
-          senderId: m.from.id,
-          receiverId: m.to.id,
-          conversationId: conv.id,
-          content: m.text,
-          status: 'READ',
-        },
-      })
-    }
-    if (lastMsg) {
-      await prisma.conversation.update({
-        where: { id: conv.id },
-        data: { lastMessageId: lastMsg.id },
-      })
-    }
-  }
-
-  // ── Résumé ────────────────────────────────────────────────────────────────
-  const tryOnCount = [j1, j3, j5, j6, j7, j8, j12, j13, j15, j16, j17].length
-
-  console.log('\n✅ Seeding terminé !')
-  console.log(`📊 Créé : 6 utilisateurs, 18 bijoux (${tryOnCount} avec try-on), 15 réservations, 5 avis, 3 conversations`)
-  console.log('\n🪞 Bijoux avec essayage virtuel activé :')
-  console.log('  👂 FACE   → Boucles d\'oreilles Tradition Or 18K (Fatima)')
-  console.log('  👂 FACE   → Créoles Géométriques Or 18K (Sophie)')
-  console.log('  📿 NECK   → Collier Berbère Or 18K (Fatima)')
-  console.log('  📿 NECK   → Chaîne Tissée Or 22K (Fatima)')
-  console.log('  📿 NECK   → Collier Maille Royale Or 18K (Karim)')
-  console.log('  📿 NECK   → Collier Rivière Or 18K Diamants (Pierre)')
-  console.log('  💍 FINGER → Chevalière Artisan Or 18K (Karim)')
-  console.log('  💍 FINGER → Bague Saphir Royal Or 18K (Pierre)')
-  console.log('  🪬 WRIST  → Bracelet Jonc Massif Or 22K (Karim)')
-  console.log('  🪬 WRIST  → Bracelet Chaîne Étoiles Or 18K (Sophie)')
-  console.log('  🪬 WRIST  → Bracelet Tennis Or 18K (Pierre)')
-  console.log('\n🔐 Identifiants :')
-  console.log('  admin@goldlink.com   / admin123  (ADMIN)')
-  console.log('  fatima@goldlink.com  / seller123 (SELLER - Paris)')
-  console.log('  karim@goldlink.com   / jeweler123 (JEWELER - Marseille)')
-  console.log('  sophie@goldlink.com  / seller2   (SELLER - Lyon)')
-  console.log('  pierre@goldlink.com  / jeweler2  (JEWELER - Bordeaux)')
-  console.log('  amina@goldlink.com   / buyer123  (BUYER)')
+  console.log('✅ Seed terminé !')
+  console.log('   👤 6 utilisateurs créés')
+  console.log('   💍 18 bijoux créés (3 avec essayage 3D : j3, j16, j17)')
+  console.log('   📅 15 réservations créées')
+  console.log('   ⭐ 5 avis créés')
+  console.log('   💬 3 conversations, 9 messages créés')
+  console.log('   🔬 1 estimation créée')
 }
 
 main()
-  .catch((e) => { console.error('❌ Seed failed:', e); process.exit(1) })
+  .catch(console.error)
   .finally(() => prisma.$disconnect())
