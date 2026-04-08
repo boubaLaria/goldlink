@@ -317,6 +317,33 @@ model Estimation {
   @@index([userId])
 }
 
+model KnowledgeDocument {
+  id         String           @id @default(cuid())
+  slug       String           @unique
+  title      String
+  sourceType String
+  sourcePath String?
+  content    String           @db.Text
+  metadata   Json?
+  chunks     KnowledgeChunk[]
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+}
+
+model KnowledgeChunk {
+  id         String            @id @default(cuid())
+  documentId String
+  document   KnowledgeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  chunkIndex Int
+  content    String            @db.Text
+  embedding  Float[]
+  metadata   Json?
+  createdAt  DateTime          @default(now())
+
+  @@unique([documentId, chunkIndex])
+  @@index([documentId])
+}
+
 // ============================================================================
 // MIGRATION NOTES
 // - All timestamps use UTC via now() and updatedAt
