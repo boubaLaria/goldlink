@@ -4,6 +4,9 @@ import { generateTokens } from '@/lib/auth'
 import prisma from '@/lib/db'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
+import { cookies } from 'next/headers'
+
+const ACCESS_TOKEN_MAX_AGE = 15 * 60 // 15 minutes
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -41,6 +44,16 @@ export async function POST(request: NextRequest) {
 
     // Generate tokens
     const { accessToken, refreshToken } = generateTokens(user.id, user.email)
+
+    // Set access token cookie for Next.js middleware
+    const cookieStore = await cookies()
+    cookieStore.set('access_token', accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: ACCESS_TOKEN_MAX_AGE,
+      path: '/',
+    })
 
     return sendJSON({
       user: {

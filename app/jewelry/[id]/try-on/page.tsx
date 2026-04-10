@@ -19,7 +19,7 @@ export default async function TryOnPage({ params }: { params: Promise<{ id: stri
     },
   })
 
-  if (!jewelry || !jewelry.model3dUrl) {
+  if (!jewelry) {
     notFound()
   }
 

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, lazy, Suspense } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowLeft, Calendar, MapPin, Star, Pencil, Trash2, Box } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -15,8 +15,9 @@ import { JewelryReviews } from "@/components/jewelry/jewelry-reviews"
 import Link from "next/link"
 import { toast } from "sonner"
 
-const JewelryViewer3D = lazy(() => import("@/components/jewelry/jewelry-viewer-3d"))
-const WebARView = lazy(() => import("@/components/jewelry/web-ar-view"))
+import dynamic from "next/dynamic"
+
+const JewelryViewer3D = dynamic(() => import("@/components/jewelry/jewelry-viewer-3d"), { ssr: false })
 
 type Owner = {
   id: string; firstName: string; lastName: string
@@ -47,7 +48,6 @@ export function JewelryDetailClient({ jewelry }: JewelryDetailClientProps) {
   const { user: currentUser } = useAuth()
   const { delete: deleteJewelry } = useJewelry()
   const [show3DViewer, setShow3DViewer] = useState(false)
-  const [showARTryOn, setShowARTryOn] = useState(false)
 
   const handle3DError = () => {
     setShow3DViewer(false)
@@ -73,27 +73,18 @@ export function JewelryDetailClient({ jewelry }: JewelryDetailClientProps) {
   return (
     <div className="py-8">
       <div className="container mx-auto px-4">
-        <Button variant="ghost" onClick={() => router.back()} className="mb-6">
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Retour
+        <Button variant="ghost" asChild className="mb-6">
+          <Link href="/catalog">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Retour
+          </Link>
         </Button>
 
         <div className="grid lg:grid-cols-2 gap-8">
           {/* Left: 3D viewer (if GLB available) or image gallery */}
           <div className="space-y-3">
             {jewelry.model3dUrl && show3DViewer ? (
-              <Suspense fallback={
-                <div className="w-full aspect-square bg-zinc-900 rounded-xl flex flex-col items-center justify-center gap-3 text-white/50">
-                  <div className="relative w-12 h-12">
-                    <div className="absolute inset-0 border-2 border-white/20 rounded-full" />
-                    <div className="absolute inset-0 border-2 border-white/60 border-t-transparent rounded-full animate-spin" />
-                    <Box className="absolute inset-0 m-auto w-5 h-5 text-white/40" />
-                  </div>
-                  <span className="text-sm">Chargement du modèle 3D...</span>
-                </div>
-              }>
-                <JewelryViewer3D glbUrl={jewelry.model3dUrl} onError={handle3DError} />
-              </Suspense>
+              <JewelryViewer3D glbUrl={jewelry.model3dUrl} onError={handle3DError} />
             ) : (
               <JewelryImageGallery images={jewelry.images} title={jewelry.title} />
             )}
@@ -115,16 +106,6 @@ export function JewelryDetailClient({ jewelry }: JewelryDetailClientProps) {
                   onClick={() => setShow3DViewer(false)}
                 >
                   Photos
-                </Button>
-                <Button
-                  asChild
-                  variant="outline"
-                  size="sm"
-                  className="border-violet-300 text-violet-700 hover:bg-violet-50 bg-transparent"
-                >
-                  <Link href={`/jewelry/${jewelry.id}/try-on`}>
-                    Essayer
-                  </Link>
                 </Button>
               </div>
             )}
@@ -226,13 +207,11 @@ export function JewelryDetailClient({ jewelry }: JewelryDetailClientProps) {
             </div>
 
             {jewelry.model3dUrl && (
-              <Button
-                className="w-full"
-                size="lg"
-                onClick={() => setShowARTryOn(true)}
-              >
-                <Box className="mr-2 h-5 w-5" />
-                Essayer en 3D
+              <Button asChild className="w-full" size="lg">
+                <Link href={`/jewelry/${jewelry.id}/try-on`}>
+                  <Box className="mr-2 h-5 w-5" />
+                  Essayer virtuellement
+                </Link>
               </Button>
             )}
 
@@ -255,21 +234,6 @@ export function JewelryDetailClient({ jewelry }: JewelryDetailClientProps) {
 
         <JewelryReviews reviews={jewelry.reviews} />
       </div>
-
-      {/* WebAR modal */}
-      {showARTryOn && jewelry.model3dUrl && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-          <div className="w-full max-w-2xl">
-            <Suspense fallback={
-              <div className="w-full h-[600px] bg-black rounded-xl flex items-center justify-center text-white">
-                Chargement...
-              </div>
-            }>
-              <WebARView glbUrl={jewelry.model3dUrl} onClose={() => setShowARTryOn(false)} />
-            </Suspense>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

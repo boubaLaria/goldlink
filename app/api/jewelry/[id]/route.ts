@@ -6,6 +6,7 @@ import { z } from 'zod'
 const jewelryUpdateSchema = z.object({
   title: z.string().min(3).optional(),
   description: z.string().min(10).optional(),
+  type: z.enum(['NECKLACE', 'BRACELET', 'RING', 'EARRINGS', 'PENDANT', 'CHAIN']).optional(),
   images: z.array(z.string()).optional(),
   weight: z.number().positive().optional(),
   purity: z.enum(['K8', 'K10', 'K14', 'K18', 'K22', 'K24']).optional(),

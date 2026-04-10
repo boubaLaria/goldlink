@@ -2,6 +2,15 @@
 
 type NormalizedLandmark = { x: number; y: number; z?: number; visibility?: number }
 
+// Returns the aspect ratio (height/width) of any canvas image source
+function aspectRatio(img: CanvasImageSource): number {
+  if (img instanceof HTMLImageElement)  return img.naturalHeight / img.naturalWidth
+  if (img instanceof HTMLCanvasElement) return img.height / img.width
+  if (img instanceof OffscreenCanvas)   return img.height / img.width
+  if (img instanceof HTMLVideoElement)  return img.videoHeight / img.videoWidth
+  return 1
+}
+
 // Face mesh landmark indices (478-point model)
 const FL = {
   LEFT_EAR:   234,  // left ear region
@@ -24,7 +33,7 @@ const HL = {
 // ── Helper: draw image rotated around its center with shadow & blend ─────────
 function drawRotatedImage(
   ctx: CanvasRenderingContext2D,
-  img: HTMLImageElement,
+  img: CanvasImageSource,
   cx: number, cy: number,
   w: number, h: number,
   angle: number = 0,
@@ -60,7 +69,7 @@ function mx(lm: NormalizedLandmark, W: number) {
 function drawEarrings(
   ctx: CanvasRenderingContext2D,
   faces: NormalizedLandmark[][],
-  img: HTMLImageElement,
+  img: CanvasImageSource,
   W: number, H: number,
   mirror: boolean,
 ) {
@@ -87,7 +96,7 @@ function drawEarrings(
 function drawNecklace(
   ctx: CanvasRenderingContext2D,
   faces: NormalizedLandmark[][],
-  img: HTMLImageElement,
+  img: CanvasImageSource,
   W: number, H: number,
   mirror: boolean,
 ) {
@@ -101,7 +110,7 @@ function drawNecklace(
     const faceW = Math.abs(leftEar.x - rightEar.x) * W
     const faceH = Math.abs(chin.y - top.y) * H
     const neckW = faceW * 1.3
-    const neckH = neckW * (img.naturalHeight / img.naturalWidth)
+    const neckH = neckW * aspectRatio(img)
     const cx    = mirror ? (1 - (leftEar.x + rightEar.x) / 2) * W : (leftEar.x + rightEar.x) / 2 * W
     const cy    = chin.y * H + faceH * 0.15 + neckH / 2
 
@@ -113,7 +122,7 @@ function drawNecklace(
 function drawBracelet(
   ctx: CanvasRenderingContext2D,
   hands: NormalizedLandmark[][],
-  img: HTMLImageElement,
+  img: CanvasImageSource,
   W: number, H: number,
   mirror: boolean,
 ) {
@@ -140,7 +149,7 @@ function drawBracelet(
 function drawRing(
   ctx: CanvasRenderingContext2D,
   hands: NormalizedLandmark[][],
-  img: HTMLImageElement,
+  img: CanvasImageSource,
   W: number, H: number,
   mirror: boolean,
 ) {
@@ -164,17 +173,17 @@ function drawRing(
 // ── Default overlay (center screen) when no landmarks ───────────────────────
 function drawDefault(
   ctx: CanvasRenderingContext2D,
-  img: HTMLImageElement,
+  img: CanvasImageSource,
   W: number, H: number,
 ) {
   const size = Math.min(W, H) * 0.3
-  drawRotatedImage(ctx, img, W / 2, H / 2, size, size * (img.naturalHeight / img.naturalWidth))
+  drawRotatedImage(ctx, img, W / 2, H / 2, size, size * aspectRatio(img))
 }
 
 // ── Main entry point ─────────────────────────────────────────────────────────
 export function drawJewelryOverlay(
   ctx: CanvasRenderingContext2D,
-  img: HTMLImageElement,
+  img: CanvasImageSource,
   W: number, H: number,
   tryOnType: string,
   faceLandmarks: NormalizedLandmark[][] = [],

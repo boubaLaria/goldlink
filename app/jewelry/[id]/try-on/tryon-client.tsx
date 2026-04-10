@@ -1,17 +1,19 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useState, useEffect } from "react"
+import dynamic from "next/dynamic"
 import Link from "next/link"
-import { ArrowLeft, Box, RotateCcw, Maximize2, Smartphone } from "lucide-react"
+import { ArrowLeft, AlertTriangle, Camera, Smartphone, Clock, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Header } from "@/components/layout/header"
 import { Footer } from "@/components/layout/footer"
 import { Providers } from "@/app/providers"
-import dynamic from "next/dynamic"
+import QRCode from "react-qr-code"
 
-const JewelryViewer3D = dynamic(
-  () => import("@/components/jewelry/jewelry-viewer-3d"),
+const WebcamView = dynamic(
+  () => import("@/components/tryon/webcam-view").then(m => ({ default: m.WebcamView })),
   { ssr: false }
 )
 
@@ -29,7 +31,7 @@ type TryOnJewelry = {
   title: string
   type: string
   images: string[]
-  model3dUrl: string
+  model3dUrl: string | null
   owner: { id: string; firstName: string; lastName: string }
 }
 
@@ -37,42 +39,70 @@ interface TryOnClientProps {
   jewelry: TryOnJewelry
 }
 
-export function TryOnClient({ jewelry }: TryOnClientProps) {
-  const [isFullscreen, setIsFullscreen] = useState(false)
-  const [isMobile, setIsMobile] = useState(false)
-  const containerRef = useRef<HTMLDivElement>(null)
+function CaptureResult({ dataUrl, onRetry }: { dataUrl: string; onRetry: () => void }) {
+  return (
+    <div className="flex flex-col items-center gap-4">
+      <img
+        src={dataUrl}
+        alt="Résultat essayage"
+        className="w-full max-w-lg rounded-xl border shadow"
+      />
+      <div className="flex gap-3">
+        <Button variant="outline" onClick={onRetry}>Nouvel essayage</Button>
+        <Button asChild>
+          <a href={dataUrl} download="essayage-goldlink.jpg">Télécharger</a>
+        </Button>
+      </div>
+    </div>
+  )
+}
 
-  useEffect(() => {
-    setIsMobile(/Android|iPhone|iPad|iPod/i.test(navigator.userAgent))
-  }, [])
+// ── Mobile view — caméra plein écran, caméra arrière ──────────────────────────
+function MobileTryOn({ jewelry }: { jewelry: TryOnJewelry }) {
+  const [capture, setCapture] = useState<string | null>(null)
 
-  const toggleFullscreen = () => {
-    if (!document.fullscreenElement) {
-      containerRef.current?.requestFullscreen()
-      setIsFullscreen(true)
-    } else {
-      document.exitFullscreen()
-      setIsFullscreen(false)
-    }
-  }
+  return (
+    <Providers>
+      <div className="fixed inset-0 bg-black flex flex-col">
+        {capture ? (
+          <div className="flex-1 flex flex-col items-center justify-center gap-4 p-4">
+            <CaptureResult dataUrl={capture} onRetry={() => setCapture(null)} />
+          </div>
+        ) : (
+          <>
+            <WebcamView
+              glbUrl={jewelry.model3dUrl ?? undefined}
+              onCapture={setCapture}
+              facingMode="environment"
+            />
+            <div className="absolute top-4 left-4">
+              <Button asChild variant="ghost" size="sm" className="bg-black/40 text-white hover:bg-black/60">
+                <Link href={`/jewelry/${jewelry.id}`}>
+                  <ArrowLeft className="h-4 w-4 mr-1" />
+                  Retour
+                </Link>
+              </Button>
+            </div>
+          </>
+        )}
+      </div>
+    </Providers>
+  )
+}
 
-  useEffect(() => {
-    const handler = () => setIsFullscreen(!!document.fullscreenElement)
-    document.addEventListener("fullscreenchange", handler)
-    return () => document.removeEventListener("fullscreenchange", handler)
-  }, [])
-
+// ── Desktop view — onglets QR code + Webcam ───────────────────────────────────
+function DesktopTryOn({ jewelry }: { jewelry: TryOnJewelry }) {
+  const [capture, setCapture] = useState<string | null>(null)
   const typeLabel = JEWELRY_TYPE_LABELS[jewelry.type] ?? jewelry.type
-  const modelUrl = jewelry.model3dUrl.startsWith("http")
-    ? jewelry.model3dUrl
-    : `${typeof window !== "undefined" ? window.location.origin : ""}${jewelry.model3dUrl}`
+
+  const pageUrl = `${typeof window !== "undefined" ? window.location.origin : ""}/jewelry/${jewelry.id}/try-on`
 
   return (
     <Providers>
       <div className="flex flex-col min-h-screen">
         <Header />
         <main className="flex-1 py-8">
-          <div className="container mx-auto px-4 max-w-4xl">
+          <div className="container mx-auto px-4 max-w-3xl">
 
             {/* Header */}
             <div className="mb-6">
@@ -84,10 +114,7 @@ export function TryOnClient({ jewelry }: TryOnClientProps) {
               </Button>
               <div className="flex items-start justify-between gap-4 flex-wrap">
                 <div>
-                  <h1 className="text-2xl font-bold flex items-center gap-2">
-                    <Box className="h-6 w-6 text-violet-600" />
-                    Essayage virtuel 3D
-                  </h1>
+                  <h1 className="text-2xl font-bold">Essayage virtuel</h1>
                   <p className="text-muted-foreground mt-1">{jewelry.title}</p>
                 </div>
                 <Badge variant="outline" className="text-violet-700 border-violet-300">
@@ -96,76 +123,59 @@ export function TryOnClient({ jewelry }: TryOnClientProps) {
               </div>
             </div>
 
-            {/* Instructions */}
-            <div className="flex flex-wrap gap-3 mb-5 text-sm text-muted-foreground">
-              <span className="flex items-center gap-1.5">
-                <RotateCcw className="w-4 h-4" />
-                Cliquez et faites glisser pour faire pivoter
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Maximize2 className="w-4 h-4" />
-                Scroll pour zoomer
-              </span>
-              {isMobile && (
-                <span className="flex items-center gap-1.5">
-                  <Smartphone className="w-4 h-4" />
-                  Pincez pour zoomer
-                </span>
-              )}
-            </div>
+            {capture ? (
+              <CaptureResult dataUrl={capture} onRetry={() => setCapture(null)} />
+            ) : (
+              <Tabs defaultValue="qr">
+                <TabsList className="mb-6">
+                  <TabsTrigger value="qr" className="flex items-center gap-1.5">
+                    <Smartphone className="h-4 w-4" />
+                    Sur mobile
+                  </TabsTrigger>
+                  <TabsTrigger value="webcam" className="flex items-center gap-1.5">
+                    <Camera className="h-4 w-4" />
+                    Webcam
+                  </TabsTrigger>
+                </TabsList>
 
-            {/* 3D Viewer */}
-            <div ref={containerRef} className="relative">
-              <JewelryViewer3D
-                glbUrl={jewelry.model3dUrl}
-                className={isFullscreen ? "h-screen" : ""}
-              />
+                {/* QR code tab */}
+                <TabsContent value="qr">
+                  <div className="flex flex-col items-center gap-6 py-8">
+                    <div className="text-center space-y-2">
+                      <p className="font-semibold text-lg">Essayez sur votre téléphone</p>
+                      <p className="text-muted-foreground text-sm max-w-sm">
+                        Scannez ce QR code avec votre téléphone pour utiliser la caméra arrière
+                        et obtenir un résultat plus précis.
+                      </p>
+                    </div>
+                    {pageUrl && (
+                      <div className="p-4 bg-white rounded-2xl shadow border">
+                        <QRCode value={pageUrl} size={200} />
+                      </div>
+                    )}
+                    <p className="text-xs text-muted-foreground">{pageUrl}</p>
+                  </div>
+                </TabsContent>
 
-              {/* Fullscreen button */}
-              <Button
-                size="icon"
-                variant="ghost"
-                className="absolute top-3 right-3 bg-black/40 hover:bg-black/60 text-white"
-                onClick={toggleFullscreen}
-                title={isFullscreen ? "Quitter le plein écran" : "Plein écran"}
-              >
-                <Maximize2 className="h-4 w-4" />
-              </Button>
+                {/* Webcam tab */}
+                <TabsContent value="webcam">
+                  {/* Warning */}
+                  <div className="flex items-start gap-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 mb-4">
+                    <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                    <span>
+                      Résultat approximatif sur webcam. Pour un meilleur rendu, utilisez
+                      l'option <strong>Sur mobile</strong> ci-dessus.
+                    </span>
+                  </div>
 
-              {/* AR button on mobile — uses model-viewer via script tag */}
-              {isMobile && (
-                <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
-                  <a
-                    href={modelUrl}
-                    rel="ar"
-                    className="inline-flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white text-sm font-medium px-4 py-2 rounded-full shadow-lg transition-colors"
-                  >
-                    <Smartphone className="w-4 h-4" />
-                    Voir en réalité augmentée
-                  </a>
-                </div>
-              )}
-            </div>
-
-            {/* Info strip */}
-            <div className="mt-4 flex items-center gap-3 p-3 bg-muted/50 rounded-lg border text-sm">
-              {jewelry.images[0] && (
-                <img
-                  src={jewelry.images[0]}
-                  alt={jewelry.title}
-                  className="h-12 w-12 rounded object-cover border shrink-0"
-                />
-              )}
-              <div className="flex-1 min-w-0">
-                <p className="font-medium line-clamp-1">{jewelry.title}</p>
-                <p className="text-xs text-muted-foreground">
-                  Modèle 3D interactif — faites tourner le bijou à 360°
-                </p>
-              </div>
-              <Button asChild variant="outline" size="sm">
-                <Link href={`/jewelry/${jewelry.id}`}>Voir les détails</Link>
-              </Button>
-            </div>
+                  <WebcamView
+                    glbUrl={jewelry.model3dUrl ?? undefined}
+                    onCapture={setCapture}
+                    facingMode="user"
+                  />
+                </TabsContent>
+              </Tabs>
+            )}
 
           </div>
         </main>
@@ -173,4 +183,56 @@ export function TryOnClient({ jewelry }: TryOnClientProps) {
       </div>
     </Providers>
   )
+}
+
+// ── Root — routing mobile/desktop + type guard ────────────────────────────────
+export function TryOnClient({ jewelry }: TryOnClientProps) {
+  const [isMobile, setIsMobile] = useState(false)
+  const [hydrated, setHydrated] = useState(false)
+
+  useEffect(() => {
+    setIsMobile(/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768)
+    setHydrated(true)
+  }, [])
+
+  // Type non supporté → bientôt disponible
+  if (jewelry.type !== "BRACELET") {
+    const typeLabel = JEWELRY_TYPE_LABELS[jewelry.type] ?? jewelry.type
+    return (
+      <Providers>
+        <div className="flex flex-col min-h-screen">
+          <Header />
+          <main className="flex-1 flex items-center justify-center py-16">
+            <div className="text-center space-y-4 max-w-sm px-4">
+              <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mx-auto">
+                <Clock className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <h2 className="text-xl font-semibold">Bientôt disponible</h2>
+              <p className="text-muted-foreground text-sm">
+                L'essayage virtuel pour les <strong>{typeLabel.toLowerCase()}s</strong> est
+                en cours de développement. Seuls les bracelets sont disponibles pour le moment.
+              </p>
+              <Button asChild variant="outline">
+                <Link href={`/jewelry/${jewelry.id}`}>
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Retour au bijou
+                </Link>
+              </Button>
+            </div>
+          </main>
+          <Footer />
+        </div>
+      </Providers>
+    )
+  }
+
+  // Attendre l'hydratation avant de décider mobile/desktop
+  if (!hydrated) return (
+    <div className="fixed inset-0 flex items-center justify-center bg-background">
+      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+    </div>
+  )
+
+  if (isMobile) return <MobileTryOn jewelry={jewelry} />
+  return <DesktopTryOn jewelry={jewelry} />
 }

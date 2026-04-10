@@ -150,10 +150,12 @@ export function useAuth(): UseAuthReturn {
     }
   }
 
-  const logout = () => {
+  const logout = async () => {
     localStorage.removeItem('accessToken')
     localStorage.removeItem('refreshToken')
     setUser(null)
+    // Efface le cookie access_token côté serveur
+    await fetch('/api/auth/logout', { method: 'POST' }).catch(() => {})
     router.push('/')
   }
 
