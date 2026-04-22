@@ -12,9 +12,44 @@
  * After render(), call: ctx.drawImage(renderer.canvas, 0, 0)  with source-over.
  */
 
+/**
+ * Validates a loaded GLTF scene: must contain real meshes and a non-degenerate
+ * bounding box. Rejects empty scenes and placeholder files with maxDim < 0.01.
+ */
+function validateGltfScene(scene: any, THREE: any):
+  | { valid: true; maxDim: number; center: any; size: any; meshCount: number }
+  | { valid: false; reason: string }
+{
+  let meshCount = 0
+  let hasValidGeometry = false
+  scene.traverse((node: any) => {
+    if (node.isMesh) {
+      meshCount++
+      const pos = node.geometry?.attributes?.position
+      if (pos && pos.count > 0) hasValidGeometry = true
+    }
+  })
+  if (meshCount === 0)       return { valid: false, reason: "no meshes" }
+  if (!hasValidGeometry)     return { valid: false, reason: "empty geometry" }
+
+  const box = new THREE.Box3().setFromObject(scene)
+  if (box.isEmpty())         return { valid: false, reason: "empty bounding box" }
+
+  const size   = box.getSize(new THREE.Vector3())
+  const center = box.getCenter(new THREE.Vector3())
+  const maxDim = Math.max(size.x, size.y, size.z)
+
+  if (!isFinite(maxDim))     return { valid: false, reason: "non-finite bbox" }
+  if (maxDim < 0.01)         return { valid: false, reason: `maxDim too small (${maxDim.toFixed(4)})` }
+
+  return { valid: true, maxDim, center, size, meshCount }
+}
+
 export class TryOn3DRenderer {
   canvas: HTMLCanvasElement
   ready = false
+  /** True if the GLB failed validation and the procedural torus is used instead. */
+  usedFallback = false
 
   private renderer:  any = null
   private scene:     any = null
@@ -48,7 +83,7 @@ export class TryOn3DRenderer {
 
     // ACES Filmic: better contrast & saturation than linear (essential for gold)
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping
-    this.renderer.toneMappingExposure = 2.2   // augmenté — l'or transparent-alpha avait besoin de plus
+    this.renderer.toneMappingExposure = 1.3   // baissé — évite de désaturer l'or en blanc
     this.renderer.outputColorSpace = THREE.SRGBColorSpace
 
     // ── 2. Scene ──────────────────────────────────────────────────────────
@@ -95,20 +130,47 @@ export class TryOn3DRenderer {
     this.camera.position.z = 500
 
     // ── 6. Load GLB ou tore procédural par défaut ────────────────────────
-    if (glbUrl) {
-      const { GLTFLoader } = await import(
-        "three/examples/jsm/loaders/GLTFLoader.js" as any
-      )
+    const loadProceduralTorus = () => {
+      // Or 18K — couleur riche, reflets contrôlés pour éviter le blanc sur-exposé.
+      // envMapIntensity bas + roughness modéré = aspect "métal poli" plutôt que "miroir".
+      const goldMat = new THREE.MeshStandardMaterial({
+        color:           new THREE.Color(0.93, 0.62, 0.18),
+        metalness:       1.0,
+        roughness:       0.45,
+        envMapIntensity: 1.2,
+      })
+      const geometry = new THREE.TorusGeometry(40, 8, 24, 96)
+      for (let i = 0; i < instanceCount; i++) {
+        const mesh = new THREE.Mesh(geometry, goldMat)
+        mesh.visible = false
+        this.scene.add(mesh)
+        this.instances.push(mesh)
+      }
+      this.usedFallback = true
+    }
 
-      await new Promise<void>((resolve, reject) => {
-        new GLTFLoader().load(glbUrl, (gltf: any) => {
+    if (glbUrl) {
+      try {
+        const { GLTFLoader } = await import(
+          "three/examples/jsm/loaders/GLTFLoader.js" as any
+        )
+        const gltf: any = await new Promise((resolve, reject) => {
+          new GLTFLoader().load(glbUrl, resolve, undefined, reject)
+        })
+
+        // ── Validation ───────────────────────────────────────────────────
+        // A usable jewelry GLB must have actual meshes and a non-degenerate bbox.
+        const validation = validateGltfScene(gltf.scene, THREE)
+        // eslint-disable-next-line no-console
+        console.log("[GLB validation]", glbUrl, validation)
+        if (!validation.valid) {
+          // eslint-disable-next-line no-console
+          console.warn(`[GLB] rejected (${validation.reason}) — falling back to torus`)
+          loadProceduralTorus()
+        } else {
           // Normalize: center + max dimension → 100 world units
-          const box    = new THREE.Box3().setFromObject(gltf.scene)
-          const center = box.getCenter(new THREE.Vector3())
-          const size   = box.getSize(new THREE.Vector3())
-          const maxDim = Math.max(size.x, size.y, size.z)
-          gltf.scene.position.sub(center)
-          gltf.scene.scale.setScalar(100 / maxDim)
+          gltf.scene.position.sub(validation.center)
+          gltf.scene.scale.setScalar(100 / validation.maxDim)
 
           // Traverse and enhance all materials for jewelry-grade PBR
           gltf.scene.traverse((node: any) => {
@@ -153,27 +215,14 @@ export class TryOn3DRenderer {
             this.scene.add(inst)
             this.instances.push(inst)
           }
-          resolve()
-        }, undefined, reject)
-      })
-    } else {
-      // ── Tore procédural or — fallback pour valider l'algo sans GLB ────
-      const goldMat = new THREE.MeshStandardMaterial({
-        color:           new THREE.Color(1.0, 0.71, 0.29),  // or 18 carats
-        metalness:       1.0,
-        roughness:       0.3,
-        envMapIntensity: 3.0,
-      })
-      // TorusGeometry normalisé à ~100 unités monde (diamètre extérieur ≈ 96)
-      // pour correspondre à la normalisation des GLB (100 / maxDim)
-      const geometry = new THREE.TorusGeometry(40, 8, 24, 96)
-
-      for (let i = 0; i < instanceCount; i++) {
-        const mesh = new THREE.Mesh(geometry, goldMat)
-        mesh.visible = false
-        this.scene.add(mesh)
-        this.instances.push(mesh)
+        }
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.warn("[GLB] load failed — falling back to torus:", err)
+        loadProceduralTorus()
       }
+    } else {
+      loadProceduralTorus()
     }
 
     // Note: UnrealBloomPass (EffectComposer) est intentionnellement absent.
@@ -186,14 +235,19 @@ export class TryOn3DRenderer {
   /**
    * Place instance[index] at pixel coordinates.
    * sizeInPixels: desired width in pixels (model normalized to 100 units).
-   * rotZ: screen-plane rotation (bracelets, rings).
-   * rotY: y-axis spin (auto-sparkle).
+   * rotZ: screen-plane rotation — aligns the bracelet/ring plane with the arm/finger.
+   * rotX: tilt around that aligned axis — with rotX=π/2 the hole points ALONG the arm (worn).
+   * rotY: spin around the hole axis (auto-sparkle).
+   *
+   * Rotation order is 'ZXY': rotZ first (align in screen plane), then rotX (tilt hole
+   * toward arm), then rotY (roll). This is what makes a bracelet look WORN, not placed.
    */
   pose(index: number, px: number, py: number, sizeInPixels: number, rotZ = 0, rotY = 0, rotX = 0) {
     const m = this.instances[index]
     if (!m) return
     m.position.set(px - this.W / 2, this.H / 2 - py, 0)
     m.scale.setScalar(sizeInPixels / 100)
+    m.rotation.order = "ZXY"
     m.rotation.set(rotX, rotY, rotZ)
     m.visible = true
   }

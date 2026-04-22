@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react"
 import { Camera, CameraOff, Hand, Loader2, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import type { TryOn3DRenderer } from "@/lib/utils/tryon-3d-renderer"
+import { OneEuroFilter, OneEuroAngleFilter } from "@/lib/utils/one-euro-filter"
 
 const WASM_CDN   = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm"
 const HAND_MODEL = "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task"
@@ -11,20 +12,42 @@ const HAND_MODEL = "https://storage.googleapis.com/mediapipe-models/hand_landmar
 const CANVAS_W = 640
 const CANVAS_H = 480
 
+// Bracelet outer diameter ≈ 2.0 × MCP hand width. Bumped because the bracelet is now
+// seen edge-on (worn along arm) — its visible width on screen is the outer diameter,
+// no longer compressed by a 60° face-on tilt.
+const BRACELET_OUTER_RATIO = 2.0
+const BRACELET_MIN_SIZE_PX = 180
+// Tilt of the bracelet's hole axis AWAY from the arm direction toward the camera.
+// 0 = hole fully aligned with arm (edge-on, hidden). π/2 = hole facing camera (flat,
+// placed on top of wrist — "not worn"). 0.25 rad ≈ 14° gives a natural worn look:
+// mostly edge-on but with a visible rim showing the ring's thickness.
+const BRACELET_VIEW_TILT = Math.PI / 2 - 0.25
+
 interface WebcamViewProps {
   glbUrl?: string
   onCapture: (dataUrl: string) => void
   disabled?: boolean
   facingMode?: "user" | "environment"
+  /** Force the procedural gold torus instead of loading the GLB. Useful when GLBs are placeholders. */
+  forceFallback?: boolean
 }
 
-export function WebcamView({ glbUrl, onCapture, disabled, facingMode = "user" }: WebcamViewProps) {
+export function WebcamView({ glbUrl, onCapture, disabled, facingMode = "user", forceFallback }: WebcamViewProps) {
   const videoRef          = useRef<HTMLVideoElement>(null)
   const canvasRef         = useRef<HTMLCanvasElement>(null)
+  const offscreenRef      = useRef<HTMLCanvasElement | null>(null)
   const rafRef            = useRef<number | null>(null)
   const renderer3dRef     = useRef<TryOn3DRenderer | null>(null)
   const handLandmarkerRef = useRef<any>(null)
   const lastHandResult    = useRef<any>(null)
+
+  // Temporal filters — stabilise the placement across frames to kill jitter.
+  // Tuned for ~30 fps: minCutoff low (smooth when still), beta moderate (reactive when moving).
+  const filterCxRef    = useRef(new OneEuroFilter(1.5, 0.015))
+  const filterCyRef    = useRef(new OneEuroFilter(1.5, 0.015))
+  const filterSizeRef  = useRef(new OneEuroFilter(1.0, 0.005))
+  const filterRotZRef  = useRef(new OneEuroAngleFilter(1.5, 0.01))
+  const invalidFramesRef = useRef(0)
 
   const [cameraState, setCameraState] = useState<"idle" | "loading" | "ready" | "denied">("idle")
   const [rendererReady, setRendererReady] = useState(false)
@@ -41,7 +64,7 @@ export function WebcamView({ glbUrl, onCapture, disabled, facingMode = "user" }:
         const { TryOn3DRenderer } = await import("@/lib/utils/tryon-3d-renderer")
         if (cancelled) return
         const r = new TryOn3DRenderer(CANVAS_W, CANVAS_H)
-        await r.init(glbUrl ?? null, 1)
+        await r.init(forceFallback ? null : (glbUrl ?? null), 1)
         if (cancelled) { r.dispose(); return }
         renderer3dRef.current = r
         setRendererReady(true)
@@ -68,7 +91,7 @@ export function WebcamView({ glbUrl, onCapture, disabled, facingMode = "user" }:
       handLandmarkerRef.current?.close()
       renderer3dRef.current?.dispose()
     }
-  }, [glbUrl])
+  }, [glbUrl, forceFallback])
 
   // ── Camera start / stop ───────────────────────────────────────────────────
   const startCamera = useCallback(async () => {
@@ -107,8 +130,25 @@ export function WebcamView({ glbUrl, onCapture, disabled, facingMode = "user" }:
     const ctx = canvas.getContext("2d")
     if (!ctx) return
 
+    // Offscreen canvas used to composite bracelet + occlusion mask
+    if (!offscreenRef.current) {
+      offscreenRef.current = document.createElement("canvas")
+      offscreenRef.current.width  = CANVAS_W
+      offscreenRef.current.height = CANVAS_H
+    }
+    const offscreen = offscreenRef.current
+    const offCtx    = offscreen.getContext("2d")
+    if (!offCtx) return
+
     const mirror = facingMode !== "environment"
     let lastDetectTs = 0
+
+    const resetFilters = () => {
+      filterCxRef.current.reset()
+      filterCyRef.current.reset()
+      filterSizeRef.current.reset()
+      filterRotZRef.current.reset()
+    }
 
     const tick = (now: number) => {
       if (video.readyState < 2) { rafRef.current = requestAnimationFrame(tick); return }
@@ -142,120 +182,122 @@ export function WebcamView({ glbUrl, onCapture, disabled, facingMode = "user" }:
 
       if (r?.ready && hand) {
         const wrist  = hand[0]
-        const p5     = hand[5]   // index MCP (pixel)
-        const p9     = hand[9]   // middle MCP (pixel) — hand axis reference
+        const p5     = hand[5]   // index MCP
+        const p9     = hand[9]   // middle MCP — hand axis reference
         const p12    = hand[12]  // middle finger tip — depth reference
-        const p17    = hand[17]  // pinky MCP (pixel)
+        const p13    = hand[13]  // ring MCP
+        const p17    = hand[17]  // pinky MCP
+
+        // Pixel-space coords (mirror-aware).
+        const xPx = (lm: { x: number }) => mirror ? (1 - lm.x) * CANVAS_W : lm.x * CANVAS_W
+        const yPx = (lm: { y: number }) => lm.y * CANVAS_H
 
         // ── Pose validation ─────────────────────────────────────────────────
-        // 1. Depth check: reject hand too tilted (not flat toward camera)
         const depthDiff = Math.abs(wrist.z - p12.z)
+        const handHeight_px = Math.sqrt(
+          ((wrist.x - p12.x) * CANVAS_W) ** 2 +
+          ((wrist.y - p12.y) * CANVAS_H) ** 2,
+        )
+        const handWidth_px = Math.sqrt(
+          ((p5.x - p17.x) * CANVAS_W) ** 2 +
+          ((p5.y - p17.y) * CANVAS_H) ** 2,
+        )
+        const aspectRatio = handWidth_px > 0 ? handHeight_px / handWidth_px : 0
+
         if (depthDiff > 0.1) {
           hint = "Mettez la main à plat, paume vers la caméra"
+          invalidFramesRef.current++
+          r.hideAll()
+          r.render()
+        } else if (aspectRatio < 1.4) {
+          hint = "Ouvrez la main, doigts écartés, poignet visible"
+          invalidFramesRef.current++
           r.hideAll()
           r.render()
         } else {
-          // 2. Aspect ratio: reject foreshortened hand (fist, profile view)
-          const handHeight_px = Math.sqrt(
-            ((wrist.x - p12.x) * CANVAS_W) ** 2 +
-            ((wrist.y - p12.y) * CANVAS_H) ** 2,
-          )
-          const handWidth_px_check = Math.sqrt(
-            ((p5.x - p17.x) * CANVAS_W) ** 2 +
-            ((p5.y - p17.y) * CANVAS_H) ** 2,
-          )
-          const aspectRatio = handWidth_px_check > 0 ? handHeight_px / handWidth_px_check : 0
+          // Reset filters if the hand just reappeared → avoid a visual jump.
+          if (invalidFramesRef.current > 5) resetFilters()
+          invalidFramesRef.current = 0
 
-          if (aspectRatio < 1.4) {
-            hint = "Ouvrez la main, doigts écartés, poignet visible"
-            r.hideAll()
-            r.render()
-          } else {
-            // ── Valid pose → place bracelet ──────────────────────────────────
+          // ── Raw placement ────────────────────────────────────────────────
+          const cxRaw = xPx(wrist)
+          const cyRaw = yPx(wrist)
 
-            // Mirror x coordinate for selfie camera
-            const cx = mirror ? (1 - wrist.x) * CANVAS_W : wrist.x * CANVAS_W
-            const cy = wrist.y * CANVAS_H
+          // World-space arm direction (three.js Y is up, canvas Y is down → flip dy).
+          // rotZ aligns the bracelet's local frame with the arm; rotX then tilts its
+          // hole axis to match the arm (with ZXY rotation order on the renderer).
+          const dx = mirror ? -(p9.x - wrist.x) : (p9.x - wrist.x)
+          const dyWorld = -(p9.y - wrist.y)
+          const rotZRaw = Math.atan2(dyWorld * CANVAS_H, dx * CANVAS_W) + Math.PI / 2
 
-            // Wrist-to-finger angle → rotate bracelet perpendicular to hand axis
-            const dx = mirror ? -(p9.x - wrist.x) : (p9.x - wrist.x)
-            const dy = p9.y - wrist.y
-            const rotZ = Math.atan2(dy * CANVAS_H, dx * CANVAS_W) + Math.PI / 2
+          // ── Pixel-based sizing (robust, no worldLandmarks dependency) ────
+          // Outer bracelet diameter ≈ 2.0 × hand width at MCP.
+          const sizeRaw = Math.max(handWidth_px * BRACELET_OUTER_RATIO, BRACELET_MIN_SIZE_PX)
 
-            // ── Compute metric scale via worldLandmarks ─────────────────────
-            let size_px = Math.min(CANVAS_W, CANVAS_H) * 0.4
-            let wristCircum_mm = 0
+          // ── One Euro filtering → kills jitter ────────────────────────────
+          const cx     = filterCxRef.current.filter(cxRaw, now)
+          const cy     = filterCyRef.current.filter(cyRaw, now)
+          const size_px = filterSizeRef.current.filter(sizeRaw, now)
+          const rotZ   = filterRotZRef.current.filter(rotZRaw, now)
 
-            if (worldHand) {
-              const w5  = worldHand[5]
-              const w17 = worldHand[17]
+          // ── Wrist circumference (display only, from worldLandmarks) ─────
+          let wristCircum_mm = 0
+          if (worldHand) {
+            const w5  = worldHand[5]
+            const w17 = worldHand[17]
+            if (w5 && w17) {
               const handWidth_m = Math.sqrt(
                 (w5.x - w17.x) ** 2 +
                 (w5.y - w17.y) ** 2 +
                 (w5.z - w17.z) ** 2,
               )
-              const handWidth_px = Math.sqrt(
-                ((p5.x - p17.x) * CANVAS_W) ** 2 +
-                ((p5.y - p17.y) * CANVAS_H) ** 2,
-              )
-
               if (handWidth_m > 0.001) {
-                const handWidth_mm = handWidth_m * 1000
-                const pixelsPerMm  = handWidth_px / handWidth_mm
-                wristCircum_mm     = Math.round(handWidth_mm * 2.2)
-
-                // Wrist diameter = circumference / π, + 25mm visual clearance
-                const wristDiameter_mm    = wristCircum_mm / Math.PI
-                const innerDiameter_mm    = wristDiameter_mm + 25
-                const innerDiameter_px    = innerDiameter_mm * pixelsPerMm
-                size_px = innerDiameter_px * 1.5
-
-                // DEBUG — log once per second
-                if (Math.floor(now / 1000) !== Math.floor((now - 16) / 1000)) {
-                  console.log("[tryon debug]", {
-                    depthDiff:        depthDiff.toFixed(3),
-                    aspectRatio:      aspectRatio.toFixed(2),
-                    handWidth_m:      handWidth_m.toFixed(4),
-                    handWidth_mm:     handWidth_mm.toFixed(1),
-                    handWidth_px:     handWidth_px.toFixed(1),
-                    pixelsPerMm:      pixelsPerMm.toFixed(3),
-                    wristCircum_mm,
-                    innerDiameter_mm: innerDiameter_mm.toFixed(1),
-                    innerDiameter_px: innerDiameter_px.toFixed(1),
-                    size_px:          size_px.toFixed(1),
-                  })
-                }
+                wristCircum_mm = Math.round(handWidth_m * 1000 * 2.2)
               }
             }
+          }
 
-            r.pose(0, cx, cy, size_px, rotZ, 0, Math.PI / 4)
-            r.render()
-            ctx.drawImage(r.canvas, 0, 0, CANVAS_W, CANVAS_H)
+          // ── Render 3D bracelet to its own canvas ─────────────────────────
+          r.pose(0, cx, cy, size_px, rotZ, 0, BRACELET_VIEW_TILT)
+          r.render()
+          ctx.drawImage(r.canvas, 0, 0, CANVAS_W, CANVAS_H)
 
-            // 4. Draw wrist measurement badge
-            if (wristCircum_mm > 0) {
-              const label = `Poignet: ${wristCircum_mm} mm`
-              ctx.font = "bold 16px system-ui, sans-serif"
-              const textW = ctx.measureText(label).width
-              const padX = 10
-              const boxW = textW + padX * 2
-              const boxH = 28
-              const boxX = Math.max(8, Math.min(CANVAS_W - boxW - 8, cx - boxW / 2))
-              const boxY = Math.max(8, cy + 30)
+          // DEBUG — log once per second so we can see actual sizing
+          if (Math.floor(now / 1000) !== Math.floor((now - 16) / 1000)) {
+            // eslint-disable-next-line no-console
+            console.log("[tryon]", {
+              handWidth_px: handWidth_px.toFixed(1),
+              sizeRaw: sizeRaw.toFixed(1),
+              size_px: size_px.toFixed(1),
+              cx: cx.toFixed(0), cy: cy.toFixed(0),
+              rotZ_deg: (rotZ * 180 / Math.PI).toFixed(0),
+            })
+          }
 
-              ctx.fillStyle = "rgba(0, 0, 0, 0.7)"
-              ctx.beginPath()
-              ctx.roundRect(boxX, boxY, boxW, boxH, 6)
-              ctx.fill()
+          // 4. Draw wrist measurement badge (cosmetic)
+          if (wristCircum_mm > 0) {
+            const label = `Poignet: ${wristCircum_mm} mm`
+            ctx.font = "bold 16px system-ui, sans-serif"
+            const textW = ctx.measureText(label).width
+            const padX = 10
+            const boxW = textW + padX * 2
+            const boxH = 28
+            const boxX = Math.max(8, Math.min(CANVAS_W - boxW - 8, cx - boxW / 2))
+            const boxY = Math.max(8, cy + 30)
 
-              ctx.fillStyle = "#ffd700"
-              ctx.textBaseline = "middle"
-              ctx.fillText(label, boxX + padX, boxY + boxH / 2)
-            }
+            ctx.fillStyle = "rgba(0, 0, 0, 0.7)"
+            ctx.beginPath()
+            ctx.roundRect(boxX, boxY, boxW, boxH, 6)
+            ctx.fill()
+
+            ctx.fillStyle = "#ffd700"
+            ctx.textBaseline = "middle"
+            ctx.fillText(label, boxX + padX, boxY + boxH / 2)
           }
         }
       } else if (r?.ready) {
         hint = "Montrez votre poignet face à la caméra"
+        invalidFramesRef.current++
         r.hideAll()
         r.render()
       }
