@@ -94,7 +94,7 @@ export default function BookingDetailPage() {
     )
   }
 
-  const userCurrency = currentUser?.currency || 'MAD'
+  const userCurrency = currentUser?.currency || 'EUR'
   const locale = getCurrencyLocale(userCurrency)
   const status = booking.status?.toLowerCase()
   const isOwner = currentUser?.id === booking.ownerId

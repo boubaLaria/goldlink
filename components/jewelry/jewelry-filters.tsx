@@ -31,9 +31,9 @@ export function JewelryFilters({ onSearch, onFilterChange }: JewelryFiltersProps
   const handleApplyFilters = () => {
     onFilterChange({
       type: type || undefined,
-      purity: purity ? Number.parseInt(purity) : undefined,
-      minPrice: priceRange[0],
-      maxPrice: priceRange[1],
+      purity: (purity && purity !== "all") ? purity : undefined,
+      minPrice: priceRange[0] > 0 ? priceRange[0] : undefined,
+      maxPrice: priceRange[1] < 100000 ? priceRange[1] : undefined,
       location: location || undefined,
       has3d: only3d ? true : undefined,
     })

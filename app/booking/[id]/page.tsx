@@ -19,7 +19,7 @@ export default async function BookingPage({ params }: { params: Promise<{ id: st
     },
   })
 
-  if (!jewelry || !jewelry.listingTypes.includes("RENT") || !jewelry.rentPricePerDay) {
+  if (!jewelry || !jewelry.available || !jewelry.listingTypes.includes("RENT") || !jewelry.rentPricePerDay) {
     notFound()
   }
 

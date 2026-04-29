@@ -130,10 +130,11 @@ export default function CatalogPage() {
     const params: any = {}
     if (searchQuery) params.search = searchQuery
     if (filters.type && filters.type !== "all") params.type = filters.type.toUpperCase()
-    if (filters.purity) params.purity = `K${filters.purity}`
+    if (filters.purity) params.purity = filters.purity
     if (filters.minPrice !== undefined) params.minPrice = filters.minPrice
     if (filters.maxPrice !== undefined) params.maxPrice = filters.maxPrice
     if (filters.location && filters.location !== "all") params.location = filters.location
+    if (filters.has3d) params.has3d = true
     if (selectedSeller) params.ownerId = selectedSeller
     list(params)
   }, [searchQuery, filters, selectedSeller, list])

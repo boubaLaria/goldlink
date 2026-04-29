@@ -76,7 +76,7 @@ export function BookingClient({ item }: BookingClientProps) {
   const days = startDate && endDate ? calculateDaysBetween(startDate, endDate) : 0
   const rentalPrice = days * (item.rentPricePerDay || 0)
   const insurancePrice = insurance ? rentalPrice * 0.05 : 0
-  const deposit = item.estimatedValue * 0.1
+  const deposit = rentalPrice * 0.2
   const totalPrice = rentalPrice + insurancePrice
 
   const handleBooking = async () => {

@@ -56,36 +56,36 @@ export async function GET(request: NextRequest) {
       }
     }
     if (search) {
-      where.OR = [
+      where.AND = [
+        ...(where.AND || []),
         {
-          title: {
-            contains: search,
-            mode: 'insensitive',
-          },
-        },
-        {
-          description: {
-            contains: search,
-            mode: 'insensitive',
-          },
+          OR: [
+            { title: { contains: search, mode: 'insensitive' } },
+            { description: { contains: search, mode: 'insensitive' } },
+          ],
         },
       ]
     }
 
     // Price filter (check both rent and sale prices)
     if (minPrice || maxPrice) {
-      where.OR = [
+      where.AND = [
+        ...(where.AND || []),
         {
-          salePrice: {
-            gte: minPrice ? Number(minPrice) : 0,
-            lte: maxPrice ? Number(maxPrice) : undefined,
-          },
-        },
-        {
-          rentPricePerDay: {
-            gte: minPrice ? Number(minPrice) : 0,
-            lte: maxPrice ? Number(maxPrice) : undefined,
-          },
+          OR: [
+            {
+              salePrice: {
+                gte: minPrice ? Number(minPrice) : 0,
+                lte: maxPrice ? Number(maxPrice) : undefined,
+              },
+            },
+            {
+              rentPricePerDay: {
+                gte: minPrice ? Number(minPrice) : 0,
+                lte: maxPrice ? Number(maxPrice) : undefined,
+              },
+            },
+          ],
         },
       ]
     }
