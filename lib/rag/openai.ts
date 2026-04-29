@@ -148,7 +148,7 @@ export async function createChatCompletion(params: {
       Authorization: `Bearer ${getOpenAIKey()}`,
     },
     body: JSON.stringify({
-      model: process.env.OPENAI_CHAT_MODEL || "gpt-5-mini",
+      model: process.env.OPENAI_CHAT_MODEL || "gpt-4o-mini",
       instructions,
       input,
     }),

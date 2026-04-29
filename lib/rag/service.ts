@@ -28,11 +28,13 @@ export async function retrieveRelevantChunks(question: string, topK?: number) {
     },
   })
 
+  const minScore = Number(process.env.RAG_MIN_SCORE || 0.25)
   const scored = chunks
     .map((chunk) => ({
       ...chunk,
       score: cosineSimilarity(queryEmbedding, chunk.embedding),
     }))
+    .filter((chunk) => chunk.score >= minScore)
     .sort((a, b) => b.score - a.score)
     .slice(0, topK ?? Number(process.env.RAG_TOP_K || 6))
 
@@ -84,9 +86,8 @@ export async function answerWithRag(params: {
     conversation: params.conversation,
   })
 
-  const normalizedAnswer = jewelrySearch.results.length
-    ? `J'ai trouve ${jewelrySearch.results.length} bijou${jewelrySearch.results.length > 1 ? "x" : ""} correspondant a votre recherche. Vous pouvez consulter directement les cartes ci-dessous pour voir l'image, le prix, les details et ouvrir la fiche du bijou.`
-    : jewelrySearch.filters
+  const normalizedAnswer =
+    !jewelrySearch.results.length && jewelrySearch.filters
       ? "Je n'ai trouve aucun bijou correspondant exactement a votre recherche dans les donnees indexees. Vous pouvez elargir la ville, le budget ou le type de bijou pour voir plus de resultats."
       : answer
 

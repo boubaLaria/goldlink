@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { Bot, Loader2, SendHorizonal, Sparkles, MapPin, Star } from "lucide-react"
@@ -150,6 +150,7 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([INITIAL_ASSISTANT_MESSAGE])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     try {
@@ -168,7 +169,13 @@ export default function ChatPage() {
   useEffect(() => {
     if (!messages.length) return
     window.localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(messages))
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
+
+  useEffect(() => {
+    if (!loading) return
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" })
+  }, [loading])
 
   async function sendMessage(content: string) {
     const trimmed = content.trim()
@@ -221,13 +228,21 @@ export default function ChatPage() {
           <div className="container mx-auto px-4">
             <div className="mx-auto max-w-5xl space-y-6">
               <div className="space-y-3 text-center">
-                <Badge className="gap-1.5">
-                  <Sparkles className="h-3 w-3" />
-                  Assistant RAG
-                </Badge>
+                <div className="flex items-center justify-center gap-2">
+                  <Badge className="gap-1.5">
+                    <Sparkles className="h-3 w-3" />
+                    Assistant RAG
+                  </Badge>
+                  <Badge className="bg-amber-100 text-amber-700 border border-amber-300 hover:bg-amber-100">
+                    Bêta
+                  </Badge>
+                </div>
                 <h1 className="text-4xl font-bold text-balance">Chat GoldLink</h1>
                 <p className="mx-auto max-w-2xl text-muted-foreground">
                   Ce chat repond a partir d&apos;une base de connaissance composee de documents GoldLink et de donnees publiques issues du projet.
+                </p>
+                <p className="mx-auto max-w-xl text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2">
+                  Cette fonctionnalite est en version <strong>bêta</strong> — les reponses peuvent etre incompletes ou inexactes.
                 </p>
               </div>
 
@@ -295,6 +310,7 @@ export default function ChatPage() {
                             </span>
                           </div>
                         ) : null}
+                        <div ref={bottomRef} />
                       </div>
                     </ScrollArea>
 
@@ -302,12 +318,18 @@ export default function ChatPage() {
                       <Textarea
                         value={input}
                         onChange={(event) => setInput(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+                            event.preventDefault()
+                            sendMessage(input)
+                          }
+                        }}
                         placeholder="Exemple: quels vendeurs verifies proposent des bagues en or 18K ?"
                         className="min-h-[110px]"
                       />
                       <div className="flex items-center justify-between gap-3">
                         <p className="text-xs text-muted-foreground">
-                          Le chat repond uniquement a partir des documents et donnees indexes.
+                          Le chat repond uniquement a partir des documents et donnees indexes. Ctrl+Entree pour envoyer.
                         </p>
                         <div className="flex gap-2">
                           <Button

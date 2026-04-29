@@ -30,7 +30,7 @@ export function Header() {
 
   const navigation = [
     { name: "Catalogue", href: "/catalog" },
-    { name: "Assistant", href: "/chat" },
+    { name: "Assistant", href: "/chat", badge: "Bêta" },
     { name: "Estimation", href: "/estimation" },
     { name: "Comment ça marche", href: "/how-it-works" },
   ]
@@ -64,13 +64,18 @@ export function Header() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="rounded-md px-3 py-1.5 text-sm font-medium transition-colors"
+                  className="rounded-md px-3 py-1.5 text-sm font-medium transition-colors flex items-center gap-1.5"
                   style={{
                     color: isActive(item.href) ? "var(--primary)" : "var(--muted-foreground)",
                     background: isActive(item.href) ? "var(--accent)" : "transparent",
                   }}
                 >
                   {item.name}
+                  {"badge" in item && item.badge && (
+                    <Badge className="text-[9px] h-4 px-1 py-0 leading-none bg-amber-100 text-amber-700 border border-amber-300 font-semibold">
+                      {item.badge}
+                    </Badge>
+                  )}
                 </Link>
               ))}
             </nav>
@@ -203,13 +208,18 @@ export function Header() {
                     <Link
                       key={item.href}
                       href={item.href}
-                      className="rounded-md px-3 py-2.5 text-sm font-medium transition-colors"
+                      className="rounded-md px-3 py-2.5 text-sm font-medium transition-colors flex items-center gap-2"
                       style={{
                         color: isActive(item.href) ? "var(--primary)" : "var(--muted-foreground)",
                         background: isActive(item.href) ? "var(--accent)" : "transparent",
                       }}
                     >
                       {item.name}
+                      {"badge" in item && item.badge && (
+                        <Badge className="text-[9px] h-4 px-1 py-0 leading-none bg-amber-100 text-amber-700 border border-amber-300 font-semibold">
+                          {item.badge}
+                        </Badge>
+                      )}
                     </Link>
                   ))}
                 </nav>

@@ -114,8 +114,16 @@ function DesktopTryOn({ jewelry }: { jewelry: TryOnJewelry }) {
               </Button>
               <div className="flex items-start justify-between gap-4 flex-wrap">
                 <div>
-                  <h1 className="text-2xl font-bold">Essayage virtuel</h1>
-                  <p className="text-muted-foreground mt-1">{jewelry.title}</p>
+                  <div className="flex items-center gap-2 mb-1">
+                    <h1 className="text-2xl font-bold">Essayage virtuel</h1>
+                    <Badge className="text-[10px] h-5 px-1.5 py-0 leading-none bg-rose-100 text-rose-700 border border-rose-300 font-semibold">
+                      Dev
+                    </Badge>
+                  </div>
+                  <p className="text-muted-foreground">{jewelry.title}</p>
+                  <p className="text-xs text-rose-600 mt-1">
+                    Fonctionnalite experimentale — en cours de developpement.
+                  </p>
                 </div>
                 <Badge variant="outline" className="text-violet-700 border-violet-300">
                   {typeLabel}

@@ -110,14 +110,16 @@ export async function searchJewelryForChat(question: string) {
 
   if (filters.mode === "sale") {
     where.listingTypes = { has: "SALE" }
-    where.salePrice = {}
-    if (filters.minSalePrice !== undefined) where.salePrice.gte = filters.minSalePrice
-    if (filters.maxSalePrice !== undefined) where.salePrice.lte = filters.maxSalePrice
+    const salePriceFilter: Record<string, number> = {}
+    if (filters.minSalePrice !== undefined) salePriceFilter.gte = filters.minSalePrice
+    if (filters.maxSalePrice !== undefined) salePriceFilter.lte = filters.maxSalePrice
+    if (Object.keys(salePriceFilter).length) where.salePrice = salePriceFilter
   } else {
     where.listingTypes = { has: "RENT" }
-    where.rentPricePerDay = {}
-    if (filters.minRentPricePerDay !== undefined) where.rentPricePerDay.gte = filters.minRentPricePerDay
-    if (filters.maxRentPricePerDay !== undefined) where.rentPricePerDay.lte = filters.maxRentPricePerDay
+    const rentPriceFilter: Record<string, number> = {}
+    if (filters.minRentPricePerDay !== undefined) rentPriceFilter.gte = filters.minRentPricePerDay
+    if (filters.maxRentPricePerDay !== undefined) rentPriceFilter.lte = filters.maxRentPricePerDay
+    if (Object.keys(rentPriceFilter).length) where.rentPricePerDay = rentPriceFilter
   }
 
   const results = await prisma.jewelry.findMany({
