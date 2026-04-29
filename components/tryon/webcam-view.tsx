@@ -258,6 +258,11 @@ export function WebcamView({ glbUrl, onCapture, disabled, facingMode = "user", f
           }
 
           // ── Render 3D bracelet to its own canvas ─────────────────────────
+          // Depth-only arm occluder → back arc of bracelet hidden by wrist volume.
+          // Cylinder radius 0.4 × hand width sits well inside the bracelet hole
+          // (≈0.48 × hand width with the procedural torus) so the front arc stays
+          // visible. Length = 2 × bracelet size covers both sides of the wrist.
+          r.poseArmOccluder(cx, cy, handWidth_px * 0.32, size_px * 1.4, rotZ)
           r.pose(0, cx, cy, size_px, rotZ, 0, BRACELET_VIEW_TILT)
           r.render()
           ctx.drawImage(r.canvas, 0, 0, CANVAS_W, CANVAS_H)
