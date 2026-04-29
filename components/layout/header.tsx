@@ -31,7 +31,6 @@ export function Header() {
   const navigation = [
     { name: "Catalogue", href: "/catalog" },
     { name: "Assistant", href: "/chat" },
-    { name: "Essayage Virtuel", href: "/virtual-tryon" },
     { name: "Estimation", href: "/estimation" },
     { name: "Comment ça marche", href: "/how-it-works" },
   ]

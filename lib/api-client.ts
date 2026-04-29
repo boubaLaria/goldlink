@@ -50,6 +50,7 @@ export const apiClient = {
 
     const finalHeaders: Record<string, string> = {
       'Content-Type': 'application/json',
+      'ngrok-skip-browser-warning': 'true',  // bypass ngrok interstitial warning
       ...headers,
     }
 
@@ -69,7 +70,7 @@ export const apiClient = {
       if (refreshToken) {
         const refreshResponse = await fetch('/api/auth/refresh', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
           body: JSON.stringify({ refreshToken }),
         })
 

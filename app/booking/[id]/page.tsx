@@ -23,5 +23,5 @@ export default async function BookingPage({ params }: { params: Promise<{ id: st
     notFound()
   }
 
-  return <BookingClient item={jewelry} />
+  return <BookingClient item={jewelry as any} />
 }

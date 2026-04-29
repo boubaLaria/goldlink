@@ -3,7 +3,9 @@
     "allow": [
       "Bash(npx prisma generate)",
       "Bash(npm run build)",
-      "Bash(docker compose up -d)"
+      "Bash(docker compose up -d)",
+      "Bash(docker compose build app 2>&1 | tail -20 && docker compose up -d app 2>&1)",
+      "Bash(ls:*)"
     ]
   }
 }

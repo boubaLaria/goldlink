@@ -5,7 +5,7 @@ FROM node:20-alpine AS deps
 WORKDIR /app
 RUN apk add --no-cache libc6-compat
 COPY package.json package-lock.json ./
-RUN npm ci --ignore-scripts
+RUN npm ci --ignore-scripts --legacy-peer-deps
 
 # =============================================================
 # Stage 2: Migrator — runs db:push + seed, then exits
@@ -19,7 +19,22 @@ RUN npx prisma generate
 CMD ["sh", "-c", "npx prisma db push --accept-data-loss && npx tsx prisma/seed.ts"]
 
 # =============================================================
-# Stage 3: Builder — Next.js production build
+# Stage 3: Dev — hot reload development server
+# =============================================================
+FROM node:20-alpine AS dev
+WORKDIR /app
+RUN apk add --no-cache libc6-compat
+COPY --from=deps /app/node_modules ./node_modules
+COPY prisma ./prisma
+COPY package.json ./
+RUN npx prisma generate
+ENV NEXT_TELEMETRY_DISABLED=1
+# Source code is mounted as a volume at runtime for hot reload
+EXPOSE 3000
+CMD ["npm", "run", "dev"]
+
+# =============================================================
+# Stage 4: Builder — Next.js production build
 # =============================================================
 FROM node:20-alpine AS builder
 WORKDIR /app
@@ -29,7 +44,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN npx prisma generate && npm run build
 
 # =============================================================
-# Stage 4: Runner — minimal standalone production image
+# Stage 5: Runner — minimal standalone production image
 # =============================================================
 FROM node:20-alpine AS runner
 WORKDIR /app

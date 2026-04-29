@@ -44,5 +44,5 @@ export default async function JewelryDetailPage({ params }: { params: Promise<{ 
     data: { views: { increment: 1 } },
   })
 
-  return <JewelryDetailClient jewelry={jewelry} />
+  return <JewelryDetailClient jewelry={jewelry as any} />
 }

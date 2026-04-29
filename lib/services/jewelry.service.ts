@@ -79,6 +79,7 @@ export function buildJewelryPayload(formData: {
   rentPricePerDay: string
   salePrice: string
   images: string[]
+  model3dUrl?: string | null
 }) {
   return {
     title: formData.title,
@@ -92,6 +93,7 @@ export function buildJewelryPayload(formData: {
     currency: formData.currency,
     listingTypes: formData.listingTypes,
     images: formData.images,
+    model3dUrl: formData.model3dUrl ?? null,
     rentPricePerDay: formData.listingTypes.includes('RENT') && formData.rentPricePerDay
       ? parseFloat(formData.rentPricePerDay)
       : undefined,

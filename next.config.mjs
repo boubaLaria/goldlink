@@ -8,6 +8,7 @@ const nextConfig = {
     unoptimized: true,
   },
   serverExternalPackages: ['@prisma/client', 'bcryptjs', 'jsonwebtoken', 'multer'],
+  transpilePackages: ['three', '@react-three/fiber', '@react-three/drei'],
 }
 
 export default nextConfig

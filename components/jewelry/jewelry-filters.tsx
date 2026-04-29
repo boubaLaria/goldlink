@@ -1,13 +1,14 @@
 "use client"
 
 import { useState } from "react"
-import { Search, SlidersHorizontal } from "lucide-react"
+import { Search, SlidersHorizontal, Box } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { Slider } from "@/components/ui/slider"
+import { Switch } from "@/components/ui/switch"
 import { formatPrice } from "@/lib/utils/format"
 
 interface JewelryFiltersProps {
@@ -21,6 +22,7 @@ export function JewelryFilters({ onSearch, onFilterChange }: JewelryFiltersProps
   const [purity, setPurity] = useState<string>("")
   const [priceRange, setPriceRange] = useState([0, 100000])
   const [location, setLocation] = useState<string>("")
+  const [only3d, setOnly3d] = useState(false)
 
   const handleSearch = () => {
     onSearch(searchQuery)
@@ -33,6 +35,7 @@ export function JewelryFilters({ onSearch, onFilterChange }: JewelryFiltersProps
       minPrice: priceRange[0],
       maxPrice: priceRange[1],
       location: location || undefined,
+      has3d: only3d ? true : undefined,
     })
   }
 
@@ -41,6 +44,7 @@ export function JewelryFilters({ onSearch, onFilterChange }: JewelryFiltersProps
     setPurity("")
     setPriceRange([0, 100000])
     setLocation("")
+    setOnly3d(false)
     onFilterChange({})
   }
 
@@ -77,12 +81,12 @@ export function JewelryFilters({ onSearch, onFilterChange }: JewelryFiltersProps
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Tous les types</SelectItem>
-                    <SelectItem value="necklace">Collier</SelectItem>
-                    <SelectItem value="bracelet">Bracelet</SelectItem>
-                    <SelectItem value="ring">Bague</SelectItem>
-                    <SelectItem value="earrings">Boucles d'oreilles</SelectItem>
-                    <SelectItem value="pendant">Pendentif</SelectItem>
-                    <SelectItem value="chain">Chaîne</SelectItem>
+                    <SelectItem value="NECKLACE">Collier</SelectItem>
+                    <SelectItem value="BRACELET">Bracelet</SelectItem>
+                    <SelectItem value="RING">Bague</SelectItem>
+                    <SelectItem value="EARRINGS">Boucles d'oreilles</SelectItem>
+                    <SelectItem value="PENDANT">Pendentif</SelectItem>
+                    <SelectItem value="CHAIN">Chaîne</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -95,9 +99,10 @@ export function JewelryFilters({ onSearch, onFilterChange }: JewelryFiltersProps
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Toutes puretés</SelectItem>
-                    <SelectItem value="18">18K</SelectItem>
-                    <SelectItem value="22">22K</SelectItem>
-                    <SelectItem value="24">24K</SelectItem>
+                    <SelectItem value="K14">14K</SelectItem>
+                    <SelectItem value="K18">18K</SelectItem>
+                    <SelectItem value="K22">22K</SelectItem>
+                    <SelectItem value="K24">24K</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -110,22 +115,36 @@ export function JewelryFilters({ onSearch, onFilterChange }: JewelryFiltersProps
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Toutes les villes</SelectItem>
-                    <SelectItem value="Casablanca">Casablanca</SelectItem>
-                    <SelectItem value="Marrakech">Marrakech</SelectItem>
-                    <SelectItem value="Rabat">Rabat</SelectItem>
-                    <SelectItem value="Fès">Fès</SelectItem>
-                    <SelectItem value="Tanger">Tanger</SelectItem>
+                    <SelectItem value="Paris">Paris</SelectItem>
+                    <SelectItem value="Lyon">Lyon</SelectItem>
+                    <SelectItem value="Marseille">Marseille</SelectItem>
+                    <SelectItem value="Bordeaux">Bordeaux</SelectItem>
+                    <SelectItem value="Toulouse">Toulouse</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-4">
-                <Label>Prix (MAD)</Label>
+                <Label>Prix (€)</Label>
                 <Slider value={priceRange} onValueChange={setPriceRange} max={100000} step={1000} className="mt-2" />
                 <div className="flex justify-between text-sm text-muted-foreground">
                   <span>{formatPrice(priceRange[0])}</span>
                   <span>{formatPrice(priceRange[1])}</span>
                 </div>
+              </div>
+
+              <div className="flex items-center justify-between rounded-lg border p-3">
+                <div className="flex items-center gap-2">
+                  <Box className="h-4 w-4 text-violet-600" />
+                  <Label htmlFor="3d-filter" className="cursor-pointer font-medium">
+                    Essayage 3D uniquement
+                  </Label>
+                </div>
+                <Switch
+                  id="3d-filter"
+                  checked={only3d}
+                  onCheckedChange={setOnly3d}
+                />
               </div>
 
               <div className="flex gap-2 pt-4">

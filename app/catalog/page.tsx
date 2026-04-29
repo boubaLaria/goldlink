@@ -5,6 +5,7 @@ import { MapPin, Star, Gem, X, Shield } from "lucide-react"
 import { Header } from "@/components/layout/header"
 import { Footer } from "@/components/layout/footer"
 import { JewelryGrid } from "@/components/jewelry/jewelry-grid"
+import { JewelryGridSkeleton } from "@/components/jewelry/jewelry-card-skeleton"
 import { JewelryFilters } from "@/components/jewelry/jewelry-filters"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -230,18 +231,18 @@ export default function CatalogPage() {
             </div>
 
             {/* Result count */}
-            <div className="mb-4">
-              <p className="text-sm text-muted-foreground">
-                {loading
-                  ? "Chargement..."
-                  : `${normalizedJewelry.length} bijou${normalizedJewelry.length !== 1 ? "x" : ""} trouvé${normalizedJewelry.length !== 1 ? "s" : ""}`}
-              </p>
-            </div>
+            {!loading && (
+              <div className="mb-4">
+                <p className="text-sm text-muted-foreground">
+                  {normalizedJewelry.length} bijou{normalizedJewelry.length !== 1 ? "x" : ""} trouvé{normalizedJewelry.length !== 1 ? "s" : ""}
+                </p>
+              </div>
+            )}
 
-            <JewelryGrid
-              items={normalizedJewelry as any}
-              emptyMessage="Aucun bijou ne correspond à vos critères"
-            />
+            {loading
+              ? <JewelryGridSkeleton count={8} />
+              : <JewelryGrid items={normalizedJewelry as any} emptyMessage="Aucun bijou ne correspond à vos critères" />
+            }
           </div>
         </main>
         <Footer />

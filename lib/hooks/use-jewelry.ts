@@ -17,9 +17,12 @@ export interface Jewelry {
   salePrice?: number
   available: boolean
   location: string
+  country?: string
+  currency?: string
   views: number
   rating: number
   reviewCount: number
+  model3dUrl?: string | null
   owner?: {
     id: string
     firstName: string
@@ -38,8 +41,11 @@ interface JewelryFilters {
   maxPrice?: number
   location?: string
   search?: string
+  ownerId?: string
+  has3d?: boolean
   limit?: number
   skip?: number
+  [key: string]: string | number | boolean | null | undefined
 }
 
 export interface UseJewelryReturn {
@@ -64,7 +70,7 @@ export function useJewelry(): UseJewelryReturn {
     try {
       setLoading(true)
       setError(null)
-      const response = await apiClient.get('/api/jewelry', { params: filters })
+      const response = await apiClient.get('/api/jewelry', { params: filters as any })
       setJewelry(response.data)
       setTotal(response.pagination.total)
     } catch (err: any) {
