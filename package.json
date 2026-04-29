@@ -13,6 +13,7 @@
     "db:push": "prisma db push",
     "db:reset": "prisma migrate reset && npx tsx prisma/seed.ts",
     "db:studio": "prisma studio",
+    "rag:ingest": "npx tsx scripts/ingest-rag.ts",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
     "docker:build": "docker compose build",
