@@ -47,6 +47,8 @@ async function main() {
   await prisma.transaction.deleteMany()
   await prisma.booking.deleteMany()
   await prisma.jewelry.deleteMany()
+  await prisma.knowledgeChunk.deleteMany()
+  await prisma.knowledgeDocument.deleteMany()
   await prisma.user.deleteMany()
 
   // ── Utilisateurs ───────────────────────────────────────────────────────────

@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Gem, Menu, Plus, MessageSquare, Settings, LogOut, LayoutDashboard, Shield } from "lucide-react"
+import { Gem, Menu, Plus, MessageSquare, Settings, LogOut, LayoutDashboard, Shield, Bot } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import {
@@ -30,6 +30,7 @@ export function Header() {
 
   const navigation = [
     { name: "Catalogue", href: "/catalog" },
+    { name: "Assistant", href: "/chat" },
     { name: "Estimation", href: "/estimation" },
     { name: "Comment ça marche", href: "/how-it-works" },
   ]
@@ -95,6 +96,12 @@ export function Header() {
                 <Button asChild variant="ghost" size="icon">
                   <Link href="/messages">
                     <MessageSquare className="h-4.5 w-4.5" />
+                  </Link>
+                </Button>
+
+                <Button asChild variant="ghost" size="icon">
+                  <Link href="/chat">
+                    <Bot className="h-4.5 w-4.5" />
                   </Link>
                 </Button>
 
